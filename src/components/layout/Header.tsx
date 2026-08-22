@@ -25,11 +25,13 @@ export default function Header() {
     <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-2.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy text-white">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-fuchsia-500 to-teal text-white shadow-soft">
             <Droplets size={20} />
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="text-lg font-extrabold tracking-tight text-navy">COLORLINK</span>
+            <span className="bg-gradient-to-r from-primary to-teal bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
+              COLORLINK
+            </span>
             <span className="hidden text-[11px] font-medium text-slate-400 sm:block">
               Transformación Digital Inteligente en Pintura
             </span>
@@ -44,7 +46,7 @@ export default function Header() {
               end={link.to === '/'}
               className={({ isActive }) =>
                 `rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-blue-50 text-primary' : 'text-body hover:bg-slate-50 hover:text-navy'
+                  isActive ? 'bg-pink-50 text-primary' : 'text-body hover:bg-slate-50 hover:text-navy'
                 }`
               }
             >
@@ -86,7 +88,7 @@ export default function Header() {
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `rounded-lg px-3.5 py-2.5 text-sm font-medium ${
-                  isActive ? 'bg-blue-50 text-primary' : 'text-body'
+                  isActive ? 'bg-pink-50 text-primary' : 'text-body'
                 }`
               }
             >

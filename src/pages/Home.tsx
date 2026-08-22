@@ -11,16 +11,19 @@ const FEATURES = [
     icon: Sparkles,
     title: 'Análisis inteligente',
     text: 'COLORLINK interpreta tu necesidad y sugiere una solución técnica adecuada.',
+    tint: 'bg-pink-50 text-primary',
   },
   {
     icon: Clock,
     title: 'Respuesta rápida',
     text: 'Registra tu solicitud en minutos, sin formularios interminables.',
+    tint: 'bg-violet-50 text-sky',
   },
   {
     icon: ShieldCheck,
     title: 'Seguimiento transparente',
     text: 'Consulta el estado de tu solicitud en cada etapa del proceso.',
+    tint: 'bg-fuchsia-50 text-teal',
   },
 ]
 
@@ -36,9 +39,21 @@ export default function Home() {
     <div className="flex flex-col">
       {/* HERO */}
       <section className="relative overflow-hidden bg-gradient-to-b from-white to-surface-muted">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-gradient-to-br from-pink-300 to-fuchsia-300 opacity-40 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-10 -right-32 h-96 w-96 rounded-full bg-gradient-to-br from-violet-300 to-purple-300 opacity-40 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-gradient-to-br from-fuchsia-200 to-pink-200 opacity-40 blur-3xl"
+        />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
           <div className="animate-slide-up">
-            <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-primary">
+            <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-primary">
               <Sparkles size={13} /> Plataforma inteligente de recubrimientos
             </span>
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-navy sm:text-5xl">
@@ -70,9 +85,9 @@ export default function Home() {
       {/* FEATURES */}
       <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div className="grid gap-5 sm:grid-cols-3">
-          {FEATURES.map(({ icon: Icon, title, text }) => (
-            <Card key={title} className="flex flex-col gap-3 p-6">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-primary">
+          {FEATURES.map(({ icon: Icon, title, text, tint }) => (
+            <Card key={title} className="flex flex-col gap-3 p-6 transition-transform hover:-translate-y-0.5">
+              <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tint}`}>
                 <Icon size={22} />
               </span>
               <h3 className="text-base font-bold text-navy">{title}</h3>
@@ -97,7 +112,7 @@ export default function Home() {
         <div className="grid gap-5 lg:grid-cols-3">
           <button
             onClick={() => navigate('/solicitar')}
-            className="group flex flex-col items-start justify-between gap-6 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-6 text-left transition-colors hover:border-primary hover:bg-blue-50"
+            className="group flex flex-col items-start justify-between gap-6 rounded-2xl border-2 border-dashed border-pink-200 bg-pink-50/50 p-6 text-left transition-colors hover:border-primary hover:bg-pink-50"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-white transition-transform group-hover:scale-105">
               <PlusCircle size={22} />

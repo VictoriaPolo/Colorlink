@@ -24,7 +24,7 @@ export default function Ayuda() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="mb-10 text-center">
-        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-primary">
+        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-50 text-primary">
           <HelpCircle size={24} />
         </span>
         <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">¿En qué podemos ayudarte?</h1>

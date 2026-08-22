@@ -31,7 +31,7 @@ export default function Stepper({
                   isDone
                     ? 'bg-primary text-white'
                     : isCurrent
-                      ? 'bg-navy text-white ring-4 ring-blue-100'
+                      ? 'bg-navy text-white ring-4 ring-pink-100'
                       : 'bg-slate-100 text-slate-400'
                 }`}
               >

@@ -102,7 +102,7 @@ export default function WizardPage() {
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       {step !== 5 && (
         <div className="mb-8 text-center">
-          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-primary">
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-primary">
             <Sparkles size={13} /> Solicitud guiada
           </span>
           <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Solicitar solución</h1>

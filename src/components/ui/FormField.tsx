@@ -25,7 +25,7 @@ export default function FormField({ label, required, error, help, icon, children
 }
 
 const baseControl =
-  'w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-400 outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-blue-100'
+  'w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-navy placeholder:text-slate-400 outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-pink-100'
 
 export function controlClass(hasError?: boolean) {
   return `${baseControl} ${hasError ? 'border-red-300' : 'border-slate-200'}`

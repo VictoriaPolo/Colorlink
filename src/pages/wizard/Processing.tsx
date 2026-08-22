@@ -24,7 +24,7 @@ export default function Processing({ onDone }: { onDone: () => void }) {
   return (
     <div className="flex flex-col items-center gap-8 py-10 text-center">
       <div className="relative flex h-20 w-20 items-center justify-center">
-        <span className="absolute h-20 w-20 animate-pulse-soft rounded-full bg-blue-100" />
+        <span className="absolute h-20 w-20 animate-pulse-soft rounded-full bg-pink-100" />
         <Loader2 className="relative animate-spin text-primary" size={34} />
       </div>
 

@@ -41,7 +41,7 @@ export default function FileDropzone({
         }}
         onClick={() => inputRef.current?.click()}
         className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors ${
-          isDragging ? 'border-primary bg-blue-50' : 'border-slate-200 bg-slate-50 hover:border-primary/60'
+          isDragging ? 'border-primary bg-pink-50' : 'border-slate-200 bg-slate-50 hover:border-primary/60'
         }`}
       >
         <ImagePlus className="text-primary" size={28} />

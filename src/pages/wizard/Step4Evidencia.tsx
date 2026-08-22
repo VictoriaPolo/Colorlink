@@ -52,7 +52,7 @@ export default function Step4Evidencia({
       <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <input
           type="checkbox"
-          className="mt-0.5 h-4 w-4 accent-blue-600"
+          className="mt-0.5 h-4 w-4 accent-pink-600"
           checked={data.consentimiento}
           onChange={(e) => set('consentimiento', e.target.checked)}
         />

@@ -20,7 +20,7 @@ export default function ProcessTimeline({ etapaActual }: { etapaActual: number }
                   isDone
                     ? 'bg-primary text-white'
                     : isCurrent
-                      ? 'bg-teal text-white ring-4 ring-teal-100 animate-pulse-soft'
+                      ? 'bg-teal text-white ring-4 ring-fuchsia-100 animate-pulse-soft'
                       : 'bg-slate-100 text-slate-400'
                 }`}
               >

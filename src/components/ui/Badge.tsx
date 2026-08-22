@@ -2,10 +2,10 @@ import type { EstadoSolicitud } from '../../types'
 
 const estadoStyles: Record<EstadoSolicitud, string> = {
   Recibida: 'bg-slate-100 text-slate-600',
-  'En análisis': 'bg-sky-100 text-sky-700',
-  'Solución propuesta': 'bg-blue-100 text-primary-dark',
+  'En análisis': 'bg-violet-100 text-violet-700',
+  'Solución propuesta': 'bg-fuchsia-100 text-primary-dark',
   'En abastecimiento': 'bg-amber-100 text-amber-700',
-  'Servicio programado': 'bg-teal-100 text-teal-700',
+  'Servicio programado': 'bg-pink-100 text-pink-700',
   Finalizada: 'bg-green-100 text-success',
 }
 
