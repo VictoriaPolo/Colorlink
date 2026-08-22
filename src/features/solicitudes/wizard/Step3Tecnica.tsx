@@ -1,7 +1,7 @@
 import { Layers, Wind, Activity, Palette } from 'lucide-react'
-import FormField, { controlClass } from '../../components/ui/FormField'
-import HelpHint from '../../components/ui/HelpHint'
-import type { TecnicaData } from '../../types'
+import FormField, { controlClass } from '@/shared/ui/FormField'
+import HelpHint from '@/shared/ui/HelpHint'
+import type { TecnicaData } from '@/domain/solicitud/types'
 
 const SUPERFICIES = ['Interior', 'Exterior', 'Fachada', 'Metal', 'Madera', 'Concreto', 'Otro']
 const AMBIENTES = ['Interior seco', 'Interior húmedo', 'Exterior', 'Industrial', 'Alta exposición']

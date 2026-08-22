@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Sparkles, AlertTriangle, Pencil, Download, ListChecks, Home } from 'lucide-react'
-import Card from '../../components/ui/Card'
-import Button from '../../components/ui/Button'
-import ProcessTimeline from '../../components/ui/ProcessTimeline'
-import type { Solicitud } from '../../types'
+import Card from '@/shared/ui/Card'
+import Button from '@/shared/ui/Button'
+import ProcessTimeline from '@/shared/ui/ProcessTimeline'
+import type { Solicitud } from '@/domain/solicitud/types'
+import { etapaDelNegocio } from '@/domain/solicitud/estadoMachine'
 
 export default function Result({ solicitud, onEditar }: { solicitud: Solicitud; onEditar: () => void }) {
   const navigate = useNavigate()
@@ -127,7 +128,7 @@ Tiempo estimado: ${recomendacion.tiempoEstimado}
       {/* Qué sigue */}
       <Card className="p-6">
         <h3 className="mb-6 text-base font-bold text-navy">¿Qué sigue?</h3>
-        <ProcessTimeline etapaActual={2} />
+        <ProcessTimeline etapaActual={etapaDelNegocio(solicitud.estado)} />
         <p className="mt-6 text-sm text-body">
           Tu solicitud ha sido registrada. Nuestro sistema continuará con la validación técnica y
           disponibilidad de materiales.

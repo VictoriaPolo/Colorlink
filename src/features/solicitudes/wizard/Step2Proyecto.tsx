@@ -1,6 +1,6 @@
 import { MapPin, Building2, Ruler, CalendarDays } from 'lucide-react'
-import FormField, { controlClass } from '../../components/ui/FormField'
-import type { ProyectoData } from '../../types'
+import FormField, { controlClass } from '@/shared/ui/FormField'
+import type { ProyectoData } from '@/domain/solicitud/types'
 
 const TIPOS_OBRA = [
   'Vivienda',

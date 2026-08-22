@@ -1,6 +1,6 @@
-import { controlClass } from '../../components/ui/FormField'
-import FileDropzone from '../../components/ui/FileDropzone'
-import type { EvidenciaData, EvidenciaImagen } from '../../types'
+import { controlClass } from '@/shared/ui/FormField'
+import FileDropzone from '@/shared/ui/FileDropzone'
+import type { EvidenciaData, EvidenciaImagen } from '@/domain/solicitud/types'
 
 export default function Step4Evidencia({
   data,

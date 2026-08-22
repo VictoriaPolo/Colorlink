@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react'
-import Stepper from '../../components/ui/Stepper'
-import Card from '../../components/ui/Card'
-import Button from '../../components/ui/Button'
+import Stepper from '@/shared/ui/Stepper'
+import Card from '@/shared/ui/Card'
+import Button from '@/shared/ui/Button'
 import Step1Identificacion from './Step1Identificacion'
 import Step2Proyecto from './Step2Proyecto'
 import Step3Tecnica from './Step3Tecnica'
 import Step4Evidencia from './Step4Evidencia'
 import Processing from './Processing'
 import Result from './Result'
-import { useSolicitudes } from '../../context/SolicitudesContext'
-import type { SolicitudFormData, Solicitud } from '../../types'
+import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
+import { useToast } from '@/shared/lib/toast'
+import { wizardSchemas, primerosErrores } from '@/domain/solicitud/schemas'
+import type { SolicitudFormData, Solicitud } from '@/domain/solicitud/types'
 
 const STEPS = [
   { label: 'Identificación' },
@@ -31,6 +33,7 @@ type WizardStep = 1 | 2 | 3 | 4 | 'processing' | 5
 
 export default function WizardPage() {
   const { crearSolicitud } = useSolicitudes()
+  const { mostrarToast } = useToast()
   const [step, setStep] = useState<WizardStep>(1)
   const [formData, setFormData] = useState<SolicitudFormData>(emptyFormData)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -38,44 +41,26 @@ export default function WizardPage() {
 
   const stepperCurrent = step === 'processing' ? 5 : step
 
-  const validateStep = (current: WizardStep): boolean => {
-    const newErrors: Record<string, string> = {}
-
-    if (current === 1) {
-      const { cliente, nit, responsable, canal } = formData.identificacion
-      if (!cliente.trim()) newErrors.cliente = 'Este campo es obligatorio.'
-      if (!nit.trim()) newErrors.nit = 'Este campo es obligatorio.'
-      if (!responsable.trim()) newErrors.responsable = 'Este campo es obligatorio.'
-      if (!canal) newErrors.canal = 'Selecciona un canal.'
+  const validateStep = (current: 1 | 2 | 3 | 4): boolean => {
+    const schema = wizardSchemas[current]
+    const datosPorPaso = {
+      1: formData.identificacion,
+      2: formData.proyecto,
+      3: formData.tecnica,
+      4: formData.evidencia,
     }
+    const resultado = schema.safeParse(datosPorPaso[current])
 
-    if (current === 2) {
-      const { ciudad, tipoObra, areaAprox, fechaRequerida } = formData.proyecto
-      if (!ciudad) newErrors.ciudad = 'Selecciona una ciudad.'
-      if (!tipoObra) newErrors.tipoObra = 'Selecciona un tipo de obra.'
-      if (!areaAprox || Number(areaAprox) <= 0) newErrors.areaAprox = 'Ingresa un área válida.'
-      if (!fechaRequerida) newErrors.fechaRequerida = 'Selecciona una fecha.'
+    if (!resultado.success) {
+      setErrors(primerosErrores(resultado.error.issues))
+      return false
     }
-
-    if (current === 3) {
-      const { superficie, ambiente, condicion, colorAcabado } = formData.tecnica
-      if (!superficie) newErrors.superficie = 'Selecciona una opción.'
-      if (!ambiente) newErrors.ambiente = 'Selecciona una opción.'
-      if (!condicion) newErrors.condicion = 'Selecciona una opción.'
-      if (!colorAcabado) newErrors.colorAcabado = 'Selecciona una opción.'
-    }
-
-    if (current === 4) {
-      if (!formData.evidencia.descripcion.trim()) newErrors.descripcion = 'Cuéntanos brevemente qué necesitas.'
-      if (!formData.evidencia.consentimiento) newErrors.consentimiento = 'Debes aceptar el tratamiento de datos.'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    setErrors({})
+    return true
   }
 
   const goNext = () => {
-    if (typeof step !== 'number') return
+    if (typeof step !== 'number' || step === 5) return
     if (!validateStep(step)) return
     if (step === 4) {
       setStep('processing')
@@ -92,6 +77,7 @@ export default function WizardPage() {
     const nueva = crearSolicitud(formData)
     setSolicitudCreada(nueva)
     setStep(5)
+    mostrarToast(`Solicitud ${nueva.id} creada correctamente.`)
   }
 
   const handleEditar = () => {

@@ -1,25 +1,18 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Sparkles, AlertTriangle } from 'lucide-react'
-import Card from '../components/ui/Card'
-import Badge from '../components/ui/Badge'
-import Button from '../components/ui/Button'
-import ProcessTimeline from '../components/ui/ProcessTimeline'
-import { useSolicitudes } from '../context/SolicitudesContext'
-import type { EstadoSolicitud } from '../types'
-
-const ETAPA_POR_ESTADO: Record<EstadoSolicitud, number> = {
-  Recibida: 1,
-  'En análisis': 2,
-  'Solución propuesta': 2,
-  'En abastecimiento': 3,
-  'Servicio programado': 4,
-  Finalizada: 5,
-}
+import { ArrowLeft, Sparkles, AlertTriangle, FastForward, CheckCircle2 } from 'lucide-react'
+import Card from '@/shared/ui/Card'
+import Badge from '@/shared/ui/Badge'
+import Button from '@/shared/ui/Button'
+import ProcessTimeline from '@/shared/ui/ProcessTimeline'
+import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
+import { useToast } from '@/shared/lib/toast'
+import { etapaDelNegocio, estaFinalizada } from '@/domain/solicitud/estadoMachine'
 
 export default function SolicitudDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { obtenerSolicitud } = useSolicitudes()
+  const { obtenerSolicitud, avanzarEstadoSolicitud } = useSolicitudes()
+  const { mostrarToast } = useToast()
   const solicitud = id ? obtenerSolicitud(id) : undefined
 
   if (!solicitud) {
@@ -34,6 +27,11 @@ export default function SolicitudDetail() {
   }
 
   const { data, recomendacion } = solicitud
+
+  const simularAvance = () => {
+    const actualizada = avanzarEstadoSolicitud(solicitud.id)
+    if (actualizada) mostrarToast(`Tu solicitud avanzó a "${actualizada.estado}".`)
+  }
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -55,8 +53,29 @@ export default function SolicitudDetail() {
       </div>
 
       <Card className="mb-6 p-6">
-        <h2 className="mb-6 text-base font-bold text-navy">Progreso de tu solicitud</h2>
-        <ProcessTimeline etapaActual={ETAPA_POR_ESTADO[solicitud.estado]} />
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-bold text-navy">Progreso de tu solicitud</h2>
+          {!estaFinalizada(solicitud.estado) && (
+            <button
+              onClick={simularAvance}
+              className="inline-flex items-center gap-1.5 rounded-full bg-fuchsia-50 px-3 py-1.5 text-xs font-semibold text-teal hover:bg-fuchsia-100"
+              title="Simular avance de etapa (demo académica)"
+            >
+              <FastForward size={13} /> Simular avance
+            </button>
+          )}
+        </div>
+        <ProcessTimeline etapaActual={etapaDelNegocio(solicitud.estado)} />
+
+        <ul className="mt-8 flex flex-col gap-3 border-t border-slate-100 pt-6">
+          {solicitud.historialEstados.map((h) => (
+            <li key={`${h.estado}-${h.fecha}`} className="flex items-center gap-3 text-sm">
+              <CheckCircle2 size={16} className="text-success" />
+              <span className="font-semibold text-navy">{h.estado}</span>
+              <span className="text-slate-400">— {h.fecha}</span>
+            </li>
+          ))}
+        </ul>
       </Card>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">

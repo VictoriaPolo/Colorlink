@@ -1,12 +1,14 @@
-import type { Solicitud } from '../types'
-
-export const CLIENTE_ACTUAL = 'Laura Polo'
+import type { Solicitud } from '@/domain/solicitud/types'
 
 export const solicitudesIniciales: Solicitud[] = [
   {
     id: 'CL-1001',
     fechaSolicitud: '2026-08-15',
     estado: 'En análisis',
+    historialEstados: [
+      { estado: 'Recibida', fecha: '2026-08-15' },
+      { estado: 'En análisis', fecha: '2026-08-16' },
+    ],
     data: {
       identificacion: {
         cliente: 'Constructora Andina S.A.S.',

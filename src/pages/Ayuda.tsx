@@ -1,5 +1,5 @@
 import { HelpCircle, MessageCircle, FileText, Sparkles } from 'lucide-react'
-import Card from '../components/ui/Card'
+import Card from '@/shared/ui/Card'
 
 const PREGUNTAS = [
   {

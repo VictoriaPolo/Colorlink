@@ -1,6 +1,6 @@
 import { User, Hash, UserCheck, Radio } from 'lucide-react'
-import FormField, { controlClass } from '../../components/ui/FormField'
-import type { IdentificacionData } from '../../types'
+import FormField, { controlClass } from '@/shared/ui/FormField'
+import type { IdentificacionData } from '@/domain/solicitud/types'
 
 const CANALES = ['Página web', 'WhatsApp', 'Llamada', 'Punto físico', 'Otro']
 

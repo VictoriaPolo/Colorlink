@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Sparkles, Clock, ShieldCheck, PlusCircle } from 'lucide-react'
-import Button from '../components/ui/Button'
-import Card from '../components/ui/Card'
-import Badge from '../components/ui/Badge'
-import HeroIllustration from '../components/illustrations/HeroIllustration'
-import { useSolicitudes } from '../context/SolicitudesContext'
+import Button from '@/shared/ui/Button'
+import Card from '@/shared/ui/Card'
+import Badge from '@/shared/ui/Badge'
+import { SkeletonCardList } from '@/shared/ui/Skeleton'
+import HeroIllustration from '@/shared/illustrations/HeroIllustration'
+import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
+import { useAuth } from '@/features/auth/AuthContext'
 
 const FEATURES = [
   {
@@ -29,9 +31,10 @@ const FEATURES = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const { clienteActual, solicitudes } = useSolicitudes()
+  const { usuario } = useAuth()
+  const { solicitudes, cargando } = useSolicitudes()
 
-  const nombre = clienteActual.split(' ')[0]
+  const nombre = usuario?.nombre.split(' ')[0] ?? ''
   const recientes = solicitudes.slice(0, 3)
   const activas = solicitudes.filter((s) => s.estado !== 'Finalizada').length
 
@@ -136,7 +139,9 @@ export default function Home() {
               </button>
             </div>
 
-            {recientes.length === 0 ? (
+            {cargando ? (
+              <SkeletonCardList count={2} />
+            ) : recientes.length === 0 ? (
               <Card className="flex h-full items-center justify-center p-8 text-center text-sm text-slate-400">
                 Aún no tienes solicitudes registradas.
               </Card>
