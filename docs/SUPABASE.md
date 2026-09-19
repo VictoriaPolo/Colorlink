@@ -23,6 +23,10 @@ crear el proyecto de Supabase y darle sus credenciales a la app.
    `src/data/mockData.ts`) para poder probar una lectura de inmediato.
 4. Verifica en **Table Editor** que las 8 tablas aparecen y que `solicitudes`
    tiene una fila.
+5. Opcional: pega también [`supabase/seed_demo.sql`](../supabase/seed_demo.sql)
+   y corrélo — agrega 5 solicitudes más en distintas ciudades y en cada estado
+   del ciclo de vida, para que el panel de administrador y las consultas de
+   prueba se vean con datos variados en vez de una sola fila.
 
 ## 3. Obtener la URL y la API key
 
