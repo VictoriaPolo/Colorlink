@@ -5,22 +5,26 @@ import Badge from '@/shared/ui/Badge'
 import Button from '@/shared/ui/Button'
 import ProcessTimeline from '@/shared/ui/ProcessTimeline'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
+import { useAuth } from '@/features/auth/AuthContext'
 import { useToast } from '@/shared/lib/toast'
-import { etapaDelNegocio, estaFinalizada } from '@/domain/solicitud/estadoMachine'
+import { etapaDelNegocio, estaFinalizada, etiquetaSiguienteAccion } from '@/domain/solicitud/estadoMachine'
 
 export default function SolicitudDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { usuario } = useAuth()
   const { obtenerSolicitud, avanzarEstadoSolicitud } = useSolicitudes()
   const { mostrarToast } = useToast()
   const solicitud = id ? obtenerSolicitud(id) : undefined
+  const listadoPath = usuario?.rol === 'admin' ? '/admin' : '/mis-solicitudes'
+  const listadoLabel = usuario?.rol === 'admin' ? 'Panel de administrador' : 'Mis solicitudes'
 
   if (!solicitud) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-16 text-center sm:px-6 lg:px-8">
         <p className="text-body">No encontramos la solicitud solicitada.</p>
-        <Link to="/mis-solicitudes" className="mt-4 inline-block font-semibold text-primary hover:underline">
-          Volver a mis solicitudes
+        <Link to={listadoPath} className="mt-4 inline-block font-semibold text-primary hover:underline">
+          Volver a {listadoLabel.toLowerCase()}
         </Link>
       </div>
     )
@@ -28,18 +32,25 @@ export default function SolicitudDetail() {
 
   const { data, recomendacion } = solicitud
 
-  const simularAvance = () => {
-    const actualizada = avanzarEstadoSolicitud(solicitud.id)
-    if (actualizada) mostrarToast(`Tu solicitud avanzó a "${actualizada.estado}".`)
+  const esAdmin = usuario?.rol === 'admin'
+
+  const simularAvance = async () => {
+    const actualizada = await avanzarEstadoSolicitud(solicitud.id)
+    if (!actualizada) return
+    mostrarToast(
+      esAdmin
+        ? `${actualizada.id} avanzó a "${actualizada.estado}".`
+        : `Tu solicitud avanzó a "${actualizada.estado}".`,
+    )
   }
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
       <button
-        onClick={() => navigate('/mis-solicitudes')}
+        onClick={() => navigate(listadoPath)}
         className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
       >
-        <ArrowLeft size={16} /> Mis solicitudes
+        <ArrowLeft size={16} /> {listadoLabel}
       </button>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -54,14 +65,15 @@ export default function SolicitudDetail() {
 
       <Card className="mb-6 p-6">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-bold text-navy">Progreso de tu solicitud</h2>
+          <h2 className="text-base font-bold text-navy">
+            {esAdmin ? 'Progreso de la solicitud' : 'Progreso de tu solicitud'}
+          </h2>
           {!estaFinalizada(solicitud.estado) && (
             <button
               onClick={simularAvance}
               className="inline-flex items-center gap-1.5 rounded-full bg-fuchsia-50 px-3 py-1.5 text-xs font-semibold text-teal hover:bg-fuchsia-100"
-              title="Simular avance de etapa (demo académica)"
             >
-              <FastForward size={13} /> Simular avance
+              <FastForward size={13} /> {etiquetaSiguienteAccion(solicitud.estado).larga}
             </button>
           )}
         </div>
@@ -137,7 +149,7 @@ export default function SolicitudDetail() {
       )}
 
       <div className="flex justify-center">
-        <Button variant="secondary" onClick={() => navigate('/mis-solicitudes')}>
+        <Button variant="secondary" onClick={() => navigate(listadoPath)}>
           Volver al listado
         </Button>
       </div>

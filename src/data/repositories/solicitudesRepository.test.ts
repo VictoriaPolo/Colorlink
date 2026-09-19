@@ -13,36 +13,36 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
-describe('solicitudesRepository', () => {
-  it('siembra la lista con las solicitudes iniciales cuando no hay nada guardado', () => {
-    const solicitudes = solicitudesRepository.listar()
+describe('solicitudesRepository (respaldo localStorage — sin Supabase configurado en las pruebas)', () => {
+  it('siembra la lista con las solicitudes iniciales cuando no hay nada guardado', async () => {
+    const solicitudes = await solicitudesRepository.listar()
     expect(solicitudes.length).toBeGreaterThan(0)
   })
 
-  it('crea una solicitud con id único, estado "En análisis" y la persiste', () => {
-    const antes = solicitudesRepository.listar().length
-    const nueva = solicitudesRepository.crear(formData)
+  it('crea una solicitud con id único, estado "En análisis" y la persiste', async () => {
+    const antes = (await solicitudesRepository.listar()).length
+    const nueva = await solicitudesRepository.crear(formData)
 
     expect(nueva.estado).toBe('En análisis')
     expect(nueva.historialEstados).toHaveLength(2)
-    expect(solicitudesRepository.listar().length).toBe(antes + 1)
-    expect(solicitudesRepository.obtener(nueva.id)?.id).toBe(nueva.id)
+    expect((await solicitudesRepository.listar()).length).toBe(antes + 1)
+    expect((await solicitudesRepository.obtener(nueva.id))?.id).toBe(nueva.id)
   })
 
-  it('persiste entre "recargas" simuladas (nueva lectura desde localStorage)', () => {
-    const nueva = solicitudesRepository.crear(formData)
-    const relectura = solicitudesRepository.listar()
+  it('persiste entre "recargas" simuladas (nueva lectura desde localStorage)', async () => {
+    const nueva = await solicitudesRepository.crear(formData)
+    const relectura = await solicitudesRepository.listar()
     expect(relectura.some((s) => s.id === nueva.id)).toBe(true)
   })
 
-  it('avanza el estado de una solicitud existente', () => {
-    const nueva = solicitudesRepository.crear(formData)
-    const avanzada = solicitudesRepository.avanzar(nueva.id)
+  it('avanza el estado de una solicitud existente', async () => {
+    const nueva = await solicitudesRepository.crear(formData)
+    const avanzada = await solicitudesRepository.avanzar(nueva.id)
     expect(avanzada?.estado).toBe('Solución propuesta')
-    expect(solicitudesRepository.obtener(nueva.id)?.estado).toBe('Solución propuesta')
+    expect((await solicitudesRepository.obtener(nueva.id))?.estado).toBe('Solución propuesta')
   })
 
-  it('avanzar() devuelve undefined para un id inexistente', () => {
-    expect(solicitudesRepository.avanzar('CL-NO-EXISTE')).toBeUndefined()
+  it('avanzar() devuelve undefined para un id inexistente', async () => {
+    expect(await solicitudesRepository.avanzar('CL-NO-EXISTE')).toBeUndefined()
   })
 })

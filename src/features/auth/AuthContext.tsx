@@ -6,7 +6,7 @@ import { readStorage, writeStorage, clearStorage } from '@/data/repositories/sto
 const STORAGE_KEY = 'colorlink:sesion'
 const STORAGE_VERSION = 1
 
-export type LoginResultado = { ok: true } | { ok: false; error: string }
+export type LoginResultado = { ok: true; usuario: Usuario } | { ok: false; error: string }
 
 interface AuthContextValue {
   usuario: Usuario | null
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUsuario(encontrado)
     writeStorage(STORAGE_KEY, STORAGE_VERSION, encontrado)
-    return { ok: true }
+    return { ok: true, usuario: encontrado }
   }
 
   const logout = () => {

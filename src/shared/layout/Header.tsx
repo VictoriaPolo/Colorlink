@@ -4,10 +4,15 @@ import { Menu, X, Droplets, LogOut } from 'lucide-react'
 import Button from '@/shared/ui/Button'
 import { useAuth } from '@/features/auth/AuthContext'
 
-const NAV_LINKS = [
+const NAV_LINKS_CLIENTE = [
   { to: '/', label: 'Inicio' },
   { to: '/solicitar', label: 'Solicitar solución' },
   { to: '/mis-solicitudes', label: 'Mis solicitudes' },
+  { to: '/ayuda', label: 'Ayuda' },
+]
+
+const NAV_LINKS_ADMIN = [
+  { to: '/admin', label: 'Solicitudes de clientes' },
   { to: '/ayuda', label: 'Ayuda' },
 ]
 
@@ -15,6 +20,9 @@ export default function Header() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { usuario, logout } = useAuth()
+
+  const esAdmin = usuario?.rol === 'admin'
+  const navLinks = esAdmin ? NAV_LINKS_ADMIN : NAV_LINKS_CLIENTE
 
   const iniciales = usuario
     ? usuario.nombre
@@ -32,7 +40,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <Link to="/" className="flex items-center gap-2.5">
+        <Link to={esAdmin ? '/admin' : '/'} className="flex items-center gap-2.5">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-fuchsia-500 to-teal text-white shadow-soft">
             <Droplets size={20} />
           </span>
@@ -48,7 +56,7 @@ export default function Header() {
 
         {usuario && (
           <nav className="hidden items-center gap-1 lg:flex">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
@@ -70,7 +78,7 @@ export default function Header() {
             <>
               <div className="hidden items-center gap-2.5 sm:flex">
                 <div className="flex flex-col items-end leading-tight">
-                  <span className="text-xs text-slate-400">Cliente</span>
+                  <span className="text-xs text-slate-400">{esAdmin ? 'Administrador' : 'Cliente'}</span>
                   <span className="text-sm font-semibold text-navy">{usuario.nombre}</span>
                 </div>
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-sky text-sm font-bold text-white">
@@ -85,9 +93,11 @@ export default function Header() {
                   <LogOut size={18} />
                 </button>
               </div>
-              <Button className="hidden sm:inline-flex" onClick={() => navigate('/solicitar')}>
-                Solicitar solución
-              </Button>
+              {!esAdmin && (
+                <Button className="hidden sm:inline-flex" onClick={() => navigate('/solicitar')}>
+                  Solicitar solución
+                </Button>
+              )}
               <button
                 className="rounded-lg p-2 text-navy lg:hidden"
                 onClick={() => setOpen((v) => !v)}
@@ -104,7 +114,7 @@ export default function Header() {
 
       {open && usuario && (
         <nav className="flex flex-col gap-1 border-t border-slate-100 bg-white px-4 py-3 lg:hidden">
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}

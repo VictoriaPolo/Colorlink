@@ -10,6 +10,7 @@ import Home from '@/pages/Home'
 import Solicitar from '@/pages/Solicitar'
 import MisSolicitudes from '@/pages/MisSolicitudes'
 import SolicitudDetail from '@/pages/SolicitudDetail'
+import Admin from '@/pages/Admin'
 import Ayuda from '@/pages/Ayuda'
 import Login from '@/pages/Login'
 import NotFound from '@/pages/NotFound'
@@ -45,7 +46,7 @@ export default function App() {
                   <Route
                     path="/solicitar"
                     element={
-                      <RequireAuth>
+                      <RequireAuth rol="cliente">
                         <Solicitar />
                       </RequireAuth>
                     }
@@ -53,7 +54,7 @@ export default function App() {
                   <Route
                     path="/mis-solicitudes"
                     element={
-                      <RequireAuth>
+                      <RequireAuth rol="cliente">
                         <MisSolicitudes />
                       </RequireAuth>
                     }
@@ -61,7 +62,23 @@ export default function App() {
                   <Route
                     path="/mis-solicitudes/:id"
                     element={
-                      <RequireAuth>
+                      <RequireAuth rol="cliente">
+                        <SolicitudDetail />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <RequireAuth rol="admin">
+                        <Admin />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/admin/:id"
+                    element={
+                      <RequireAuth rol="admin">
                         <SolicitudDetail />
                       </RequireAuth>
                     }

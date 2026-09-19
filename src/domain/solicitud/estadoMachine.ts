@@ -55,3 +55,12 @@ const ETAPA_POR_ESTADO: Record<EstadoSolicitud, number> = {
 export function etapaDelNegocio(estado: EstadoSolicitud): number {
   return ETAPA_POR_ESTADO[estado]
 }
+
+/** Texto corto del botón de avance ("Resolver" en el último paso, "Avanzar"
+ * en los intermedios) y su versión larga para tooltips/CTAs destacados. */
+export function etiquetaSiguienteAccion(estado: EstadoSolicitud): { corta: string; larga: string } {
+  const siguiente = siguienteEstado(estado)
+  if (!siguiente) return { corta: '', larga: '' }
+  if (siguiente === 'Finalizada') return { corta: 'Resolver', larga: 'Marcar como resuelta' }
+  return { corta: 'Avanzar', larga: `Avanzar a "${siguiente}"` }
+}

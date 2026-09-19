@@ -73,11 +73,16 @@ export default function WizardPage() {
     if (typeof step === 'number' && step > 1) setStep((step - 1) as WizardStep)
   }
 
-  const handleProcessingDone = () => {
-    const nueva = crearSolicitud(formData)
-    setSolicitudCreada(nueva)
-    setStep(5)
-    mostrarToast(`Solicitud ${nueva.id} creada correctamente.`)
+  const handleProcessingDone = async () => {
+    try {
+      const nueva = await crearSolicitud(formData)
+      setSolicitudCreada(nueva)
+      setStep(5)
+      mostrarToast(`Solicitud ${nueva.id} creada correctamente.`)
+    } catch {
+      mostrarToast('No se pudo guardar tu solicitud. Verifica tu conexión e inténtalo de nuevo.', 'error')
+      setStep(4)
+    }
   }
 
   const handleEditar = () => {

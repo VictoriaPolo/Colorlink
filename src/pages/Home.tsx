@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowRight, Sparkles, Clock, ShieldCheck, PlusCircle } from 'lucide-react'
 import Button from '@/shared/ui/Button'
 import Card from '@/shared/ui/Card'
@@ -33,6 +33,8 @@ export default function Home() {
   const navigate = useNavigate()
   const { usuario } = useAuth()
   const { solicitudes, cargando } = useSolicitudes()
+
+  if (usuario?.rol === 'admin') return <Navigate to="/admin" replace />
 
   const nombre = usuario?.nombre.split(' ')[0] ?? ''
   const recientes = solicitudes.slice(0, 3)

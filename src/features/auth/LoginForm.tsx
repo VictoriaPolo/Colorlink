@@ -1,21 +1,28 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { LogIn, Mail, Lock, Sparkles } from 'lucide-react'
+import { LogIn, Mail, Lock, Sparkles, User, ShieldCheck } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Button from '@/shared/ui/Button'
 import FormField, { controlClass } from '@/shared/ui/FormField'
 import { useAuth } from './AuthContext'
 import { cuentasDemo } from './mockUsuarios'
+import type { RolUsuario } from './types'
+
+const HOME_POR_ROL: Record<RolUsuario, string> = {
+  admin: '/admin',
+  cliente: '/',
+}
 
 export default function LoginForm() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [rol, setRol] = useState<RolUsuario>('cliente')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  const destino = (location.state as { from?: string })?.from ?? '/'
+  const destino = (location.state as { from?: string })?.from
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -24,12 +31,21 @@ export default function LoginForm() {
       setError(resultado.error)
       return
     }
-    navigate(destino, { replace: true })
+    navigate(destino ?? HOME_POR_ROL[resultado.usuario.rol], { replace: true })
   }
 
+  const cuentaDemo = cuentasDemo.find((c) => c.rol === rol)!
+
   const usarDemo = () => {
-    setEmail(cuentasDemo[0].email)
-    setPassword(cuentasDemo[0].password)
+    setEmail(cuentaDemo.email)
+    setPassword(cuentaDemo.password)
+    setError('')
+  }
+
+  const cambiarRol = (nuevoRol: RolUsuario) => {
+    setRol(nuevoRol)
+    setEmail('')
+    setPassword('')
     setError('')
   }
 
@@ -37,13 +53,34 @@ export default function LoginForm() {
     <div className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center px-4 py-12 sm:px-6">
       <div className="mb-6 text-center">
         <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-primary">
-          <Sparkles size={13} /> Acceso de cliente
+          <Sparkles size={13} /> Acceso a COLORLINK
         </span>
         <h1 className="text-2xl font-extrabold text-navy">Bienvenido de nuevo</h1>
-        <p className="mt-1 text-sm text-body">Inicia sesión para gestionar tus solicitudes.</p>
+        <p className="mt-1 text-sm text-body">Inicia sesión para continuar.</p>
       </div>
 
       <Card className="p-6 sm:p-8">
+        <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => cambiarRol('cliente')}
+            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
+              rol === 'cliente' ? 'bg-white text-primary shadow-soft' : 'text-slate-500 hover:text-navy'
+            }`}
+          >
+            <User size={15} /> Cliente
+          </button>
+          <button
+            type="button"
+            onClick={() => cambiarRol('admin')}
+            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
+              rol === 'admin' ? 'bg-white text-primary shadow-soft' : 'text-slate-500 hover:text-navy'
+            }`}
+          >
+            <ShieldCheck size={15} /> Administrador
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <FormField label="Correo electrónico" required icon={<Mail size={15} />} error={error ? ' ' : undefined}>
             <input
@@ -81,7 +118,7 @@ export default function LoginForm() {
             onClick={usarDemo}
             className="mt-2 text-sm font-semibold text-primary hover:underline"
           >
-            Usar cuenta de demostración
+            Usar cuenta de {rol === 'admin' ? 'administrador' : 'cliente'} de demostración
           </button>
         </div>
       </Card>
