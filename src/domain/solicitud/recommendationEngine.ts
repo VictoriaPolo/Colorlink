@@ -12,29 +12,29 @@ export function generarRecomendacion(data: SolicitudFormData): Recomendacion {
   const advertencias: string[] = []
 
   let tipoSolucion = 'Sistema de recubrimiento general'
-  let producto = 'Recubrimiento multipropósito COLORLINK'
+  let producto = 'Viniltex Multiuso'
 
   if (tecnica.superficie === 'Exterior' || tecnica.ambiente === 'Exterior') {
     tipoSolucion = 'Sistema de recubrimiento para exterior'
-    producto = 'Recubrimiento acrílico de alta resistencia climática'
+    producto = 'Koraza 5 Años Protección Total'
   } else if (tecnica.ambiente === 'Interior húmedo' || tecnica.condicion === 'Con humedad') {
     tipoSolucion = 'Sistema de recubrimiento con protección contra humedad'
-    producto = 'Recubrimiento antihumedad de secado rápido'
+    producto = 'Aquablock Fibratado'
   } else if (tecnica.ambiente === 'Industrial' || tecnica.superficie === 'Metal') {
     tipoSolucion = 'Sistema de recubrimiento industrial anticorrosivo'
-    producto = 'Esmalte industrial de alto desempeño'
+    producto = 'Pintulux 3 en 1 Anticorrosivo + Esmalte'
   } else if (tecnica.ambiente === 'Alta exposición' || tecnica.superficie === 'Fachada') {
     tipoSolucion = 'Sistema de recubrimiento de alta exposición'
-    producto = 'Recubrimiento elastomérico protector UV'
+    producto = 'Masilla Elastomérica + Koraza 5 Años'
   } else if (tecnica.superficie === 'Madera') {
     tipoSolucion = 'Sistema de protección y acabado para madera'
-    producto = 'Sellador y acabado para madera'
+    producto = 'Madetec Protector para Madera'
   } else if (tecnica.superficie === 'Concreto') {
     tipoSolucion = 'Sistema de recubrimiento para concreto'
-    producto = 'Recubrimiento sellador para concreto'
+    producto = 'Vinilico Concreto'
   } else if (tecnica.ambiente === 'Interior seco' || tecnica.superficie === 'Interior') {
     tipoSolucion = 'Sistema de recubrimiento para interior'
-    producto = 'Pintura interior de bajo olor y alta cubrición'
+    producto = 'Viniltex'
   }
 
   if (tecnica.condicion === 'Con humedad') {

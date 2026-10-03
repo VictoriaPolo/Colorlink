@@ -20,5 +20,13 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
     css: false,
+    // Los tests deben ejercitar siempre el respaldo local (localStorage), nunca
+    // la Supabase real -- sin esto, si el desarrollador tiene .env.local
+    // configurado, Vite lo carga también en modo test y los tests terminan
+    // leyendo/escribiendo en la base de datos real en vez de usar mocks.
+    env: {
+      VITE_SUPABASE_URL: '',
+      VITE_SUPABASE_ANON_KEY: '',
+    },
   },
 })

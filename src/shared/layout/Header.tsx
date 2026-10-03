@@ -1,17 +1,22 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Menu, X, Droplets, LogOut } from 'lucide-react'
+import { Menu, X, Droplets, LogOut, ShoppingCart } from 'lucide-react'
 import Button from '@/shared/ui/Button'
 import { useAuth } from '@/features/auth/AuthContext'
+import { useCart } from '@/features/tienda/CartContext'
 
-const NAV_LINKS_CLIENTE = [
+const NAV_LINKS_CLIENTE: { to: string; label: string; badge?: string }[] = [
   { to: '/', label: 'Inicio' },
-  { to: '/solicitar', label: 'Solicitar solución' },
+  { to: '/catalogo', label: 'Comprar Pinturas' },
+  { to: '/simulador', label: 'Encuentra tu Color' },
+  { to: '/calculadora', label: 'Calculadora' },
+  { to: '/puntos-de-retiro', label: 'Puntos de Retiro' },
+  { to: '/solicitar', label: 'Diagnóstico de Superficie', badge: 'Asistido' },
   { to: '/mis-solicitudes', label: 'Mis solicitudes' },
   { to: '/ayuda', label: 'Ayuda' },
 ]
 
-const NAV_LINKS_ADMIN = [
+const NAV_LINKS_ADMIN: { to: string; label: string; badge?: string }[] = [
   { to: '/admin', label: 'Solicitudes de clientes' },
   { to: '/ayuda', label: 'Ayuda' },
 ]
@@ -20,6 +25,7 @@ export default function Header() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { usuario, logout } = useAuth()
+  const { totalItems } = useCart()
 
   const esAdmin = usuario?.rol === 'admin'
   const navLinks = esAdmin ? NAV_LINKS_ADMIN : NAV_LINKS_CLIENTE
@@ -62,12 +68,17 @@ export default function Header() {
                 to={link.to}
                 end={link.to === '/'}
                 className={({ isActive }) =>
-                  `rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
+                  `inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
                     isActive ? 'bg-pink-50 text-primary' : 'text-body hover:bg-slate-50 hover:text-navy'
                   }`
                 }
               >
                 {link.label}
+                {link.badge && (
+                  <span className="rounded-full bg-teal/15 px-1.5 py-0.5 text-[10px] font-bold text-teal">
+                    {link.badge}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -94,9 +105,19 @@ export default function Header() {
                 </button>
               </div>
               {!esAdmin && (
-                <Button className="hidden sm:inline-flex" onClick={() => navigate('/solicitar')}>
-                  Solicitar solución
-                </Button>
+                <button
+                  onClick={() => navigate('/carrito')}
+                  className="relative rounded-lg p-2 text-navy transition-colors hover:bg-slate-50"
+                  aria-label="Ver carrito"
+                  title="Carrito"
+                >
+                  <ShoppingCart size={20} />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
               )}
               <button
                 className="rounded-lg p-2 text-navy lg:hidden"
@@ -121,12 +142,17 @@ export default function Header() {
               end={link.to === '/'}
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
-                `rounded-lg px-3.5 py-2.5 text-sm font-medium ${
+                `flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 text-sm font-medium ${
                   isActive ? 'bg-pink-50 text-primary' : 'text-body'
                 }`
               }
             >
               {link.label}
+              {link.badge && (
+                <span className="rounded-full bg-teal/15 px-1.5 py-0.5 text-[10px] font-bold text-teal">
+                  {link.badge}
+                </span>
+              )}
             </NavLink>
           ))}
           <button
