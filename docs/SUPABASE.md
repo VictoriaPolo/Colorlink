@@ -27,6 +27,11 @@ crear el proyecto de Supabase y darle sus credenciales a la app.
    y corrélo — agrega 5 solicitudes más en distintas ciudades y en cada estado
    del ciclo de vida, para que el panel de administrador y las consultas de
    prueba se vean con datos variados en vez de una sola fila.
+6. Para la tienda (catálogo, kits, carrito): pega y corre
+   [`supabase/schema_tienda.sql`](../supabase/schema_tienda.sql) y luego
+   [`supabase/seed_tienda.sql`](../supabase/seed_tienda.sql) — crean `productos`,
+   `kits` y `pedidos`, y siembran los 8 productos + 4 kits que se ven en
+   `/catalogo` y en el selector de kits del Home.
 
 ## 3. Obtener la URL y la API key
 

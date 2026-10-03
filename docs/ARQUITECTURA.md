@@ -4,18 +4,24 @@ Este documento explica cómo está organizado el código y por qué, para poder 
 
 ## Alcance funcional
 
-La aplicación implementa **solo la etapa "Necesidad del cliente"** del flujo completo de Colorlink:
+La aplicación cubre dos cosas:
 
-```
-Necesidad del cliente → Solución técnica → Abastecimiento → Servicio → Calidad
-        ↑
-   (esto es lo que existe en este frontend)
-```
+1. La etapa **"Necesidad del cliente"** del flujo completo de Colorlink (wizard de
+   solicitud → recomendación → seguimiento por el cliente y por un administrador):
 
-Las otras 4 etapas están modeladas en el diagrama relacional (`docs/DIAGRAMA.md` /
-`colorlink-modelo-completo.drawio`) pero **no** tienen pantallas propias — es una decisión
-de alcance, no una limitación técnica: el enunciado original pide que el cliente solo vea
-su solicitud, no la operación interna.
+   ```
+   Necesidad del cliente → Solución técnica → Abastecimiento → Servicio → Calidad
+           ↑
+      (esto es lo que existe en este frontend)
+   ```
+
+   Las otras 4 etapas están modeladas en el diagrama relacional (`docs/DIAGRAMA.md` /
+   `colorlink-modelo-completo.drawio`) pero **no** tienen pantallas propias.
+
+2. Una **tienda** (`domain/tienda/`, ver más abajo) donde COLORLINK opera como
+   distribuidor digital oficial de Pintuco: catálogo, kits de solución por patología,
+   calculadora de pintura, simulador de color y carrito de compra — adaptando la
+   estructura de `colorlink-tienda.onrender.com` a la paleta rosa/lila del proyecto.
 
 ## Capas
 
@@ -25,14 +31,20 @@ src/
   pages/          Componentes de ruta — delgados, solo orquestan features
   features/
     solicitudes/  Todo lo específico del dominio "solicitud": wizard, contexto de estado
+    tienda/       Carrito (CartContext), tarjeta de producto, selector de kits
+    chat/         Widget flotante del asistente virtual "Coli" (solo clientes)
     auth/         Login simulado, sesión, ruta protegida
   domain/
     solicitud/    Reglas de negocio puras: tipos, motor de recomendación,
                   máquina de estados, validaciones (zod) — sin dependencias de React
+    tienda/       Tipos de la tienda (Producto, Kit, Pedido) y la calculadora de pintura
+    chat/         Respuestas del asistente por palabras clave (pedidos, productos, tienda)
   data/
-    mockData.ts          Datos semilla (respaldo local, ver supabaseClient.ts)
+    mockData.ts          Datos semilla de solicitudes (respaldo local, ver supabaseClient.ts)
+    paletaColores.ts      Paleta de marca fija para el simulador de color
+    puntosDeRetiro.ts     Puntos de retiro físicos (contenido estático)
     supabaseClient.ts     Cliente de Supabase, o null si no hay credenciales (.env.local)
-    repositories/        Acceso a datos detrás de una interfaz estable (SolicitudesRepository)
+    repositories/        Acceso a datos detrás de una interfaz estable (SolicitudesRepository, TiendaRepository)
   shared/
     ui/           Componentes de interfaz reutilizables (Button, Card, Badge, Toaster...)
     layout/       Header
@@ -78,6 +90,18 @@ según si `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` están configuradas — e
 queda en las cuentas simuladas de `mockUsuarios.ts` por ahora, solo las solicitudes se
 mueven a la base de datos real.
 
+## Tienda COLORLINK (distribuidor Pintuco)
+
+`tiendaRepository` sigue exactamente el mismo patrón que `solicitudesRepository`
+(`.types.ts` / `.local.ts` / `.supabase.ts`, elegido según haya o no credenciales de
+Supabase) para `productos`, `kits` (`supabase/schema_tienda.sql`) y `pedidos` (captura de
+pedido, sin pasarela de pagos real — `CartContext` guarda el carrito en localStorage y al
+confirmar llama a `crearPedido`). Los 8 productos y las 4 patologías de kit reusan
+exactamente los mismos nombres de producto que ya devuelve
+`domain/solicitud/recommendationEngine.ts` (ej. "Koraza 5 Años" para exteriores,
+"Aquablock Fibratado" para humedad) — el wizard de solicitud y el catálogo de la tienda
+hablan siempre del mismo producto.
+
 ## Qué se dejó fuera a propósito
 
 - **Recuperación de contraseña / registro de cuentas**: el login usa cuentas de demostración
@@ -95,3 +119,5 @@ mueven a la base de datos real.
 - `data/repositories/solicitudesRepository.test.ts` — persistencia en localStorage
 - `features/auth/mockUsuarios.test.ts` — validación de credenciales y asignación de rol
 - `features/solicitudes/wizard/WizardPage.test.tsx` — recorrido completo del wizard (integración)
+- `domain/tienda/calculadora.test.ts` — redondeo de galones de la calculadora de pintura
+- `domain/chat/asistenteVirtual.test.ts` — respuestas del asistente según la pregunta y los pedidos
