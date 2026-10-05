@@ -36,9 +36,11 @@ export default function Calculadora() {
 
   const handleAgregarCarrito = () => {
     if (!producto || !empaque) return
-    const cantidad = empaque.cunetes * 5 + empaque.galonesSueltos
-    agregarProducto(producto, cantidad)
-    mostrarToast(`${producto.nombre} (${cantidad} gal) se agregó al carrito.`)
+    // Se agregan tal cual los calcula el empaque óptimo, para que el carrito
+    // cobre lo mismo que muestra la calculadora (cuñetes con su descuento).
+    if (empaque.cunetes > 0) agregarProducto(producto, empaque.cunetes, 'Cuñete 5 galones (18.9 L)')
+    if (empaque.galonesSueltos > 0) agregarProducto(producto, empaque.galonesSueltos, 'Galón (3.78 L)')
+    mostrarToast(`${producto.nombre} (${empaque.cunetes * 5 + empaque.galonesSueltos} gal) se agregó al carrito.`)
   }
 
   return (

@@ -4,6 +4,8 @@ import { solicitudesRepository } from '@/data/repositories/solicitudesRepository
 
 interface SolicitudesContextValue {
   solicitudes: Solicitud[]
+  /** La más reciente sin finalizar (o la más reciente, si todas lo están). */
+  proyectoActivo: Solicitud | undefined
   cargando: boolean
   crearSolicitud: (data: SolicitudFormData) => Promise<Solicitud>
   obtenerSolicitud: (id: string) => Solicitud | undefined
@@ -44,7 +46,14 @@ export function SolicitudesProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo(
-    () => ({ solicitudes, cargando, crearSolicitud, obtenerSolicitud, avanzarEstadoSolicitud }),
+    () => ({
+      solicitudes,
+      proyectoActivo: solicitudes.find((s) => s.estado !== 'Finalizada') ?? solicitudes[0],
+      cargando,
+      crearSolicitud,
+      obtenerSolicitud,
+      avanzarEstadoSolicitud,
+    }),
     [solicitudes, cargando],
   )
 

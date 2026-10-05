@@ -31,13 +31,15 @@ src/
   pages/          Componentes de ruta — delgados, solo orquestan features
   features/
     solicitudes/  Todo lo específico del dominio "solicitud": wizard, contexto de estado
-    tienda/       Carrito (CartContext), tarjeta de producto, selector de kits
+    tienda/       Carrito (CartContext), tarjeta de producto, ventana de compra, selector de
+                  kits, buscador con sugerencias
     chat/         Widget flotante del asistente virtual "Coli" (solo clientes)
     auth/         Login simulado, sesión, ruta protegida
   domain/
     solicitud/    Reglas de negocio puras: tipos, motor de recomendación,
                   máquina de estados, validaciones (zod) — sin dependencias de React
-    tienda/       Tipos de la tienda (Producto, Kit, Pedido) y la calculadora de pintura
+    tienda/       Tipos de la tienda (Producto, Kit, Pedido), calculadora de pintura,
+                  precios por presentación y búsqueda en el catálogo
     chat/         Respuestas del asistente por palabras clave (pedidos, productos, tienda)
   data/
     mockData.ts          Datos semilla de solicitudes (respaldo local, ver supabaseClient.ts)
@@ -48,7 +50,6 @@ src/
   shared/
     ui/           Componentes de interfaz reutilizables (Button, Card, Badge, Toaster...)
     layout/       Header
-    illustrations/ SVGs decorativos
     lib/          Utilidades transversales (sistema de toasts)
 ```
 
@@ -101,6 +102,13 @@ exactamente los mismos nombres de producto que ya devuelve
 `domain/solicitud/recommendationEngine.ts` (ej. "Koraza 5 Años" para exteriores,
 "Aquablock Fibratado" para humedad) — el wizard de solicitud y el catálogo de la tienda
 hablan siempre del mismo producto.
+
+Cada producto se vende en galón o en cuñete de 5 galones (`precioPresentacion` en
+`domain/tienda/calculadora.ts`: el cuñete lleva 12% de descuento). La línea del carrito
+guarda presentación y color en su nombre (ej. "Koraza 5 Años Protección Total · Cuñete 5
+galones (18.9 L) · Verde Salvia (PNT-401)"), así el pedido dice exactamente qué preparar
+sin cambiar el esquema de `pedidos`. El punto de retiro elegido también vive en
+`CartContext` (localStorage) y se muestra en el encabezado, el panel y el carrito.
 
 ## Qué se dejó fuera a propósito
 

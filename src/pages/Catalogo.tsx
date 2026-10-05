@@ -5,6 +5,7 @@ import Card from '@/shared/ui/Card'
 import { SkeletonCardList } from '@/shared/ui/Skeleton'
 import ProductoCard from '@/features/tienda/ProductoCard'
 import type { CategoriaProducto, Producto } from '@/domain/tienda/types'
+import { coincideConBusqueda } from '@/domain/tienda/busqueda'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 
 const CATEGORIAS: CategoriaProducto[] = ['Impermeabilizantes', 'Fachadas y exteriores', 'Esmaltes y metales', 'Interiores']
@@ -14,7 +15,9 @@ export default function Catalogo() {
   const [productos, setProductos] = useState<Producto[]>([])
   const [cargando, setCargando] = useState(true)
   const [categoria, setCategoria] = useState<CategoriaProducto | 'Todas'>('Todas')
-  const [busqueda, setBusqueda] = useState(searchParams.get('q') ?? '')
+  // La búsqueda vive en la URL (?q=) para que el buscador del encabezado
+  // también funcione estando ya en el catálogo.
+  const busqueda = searchParams.get('q') ?? ''
 
   useEffect(() => {
     tiendaRepository.listarProductos().then((data) => {
@@ -26,8 +29,7 @@ export default function Catalogo() {
   const filtrados = useMemo(() => {
     return productos.filter((p) => {
       const coincideCategoria = categoria === 'Todas' || p.categoria === categoria
-      const coincideBusqueda = p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-      return coincideCategoria && coincideBusqueda
+      return coincideCategoria && coincideConBusqueda(p, busqueda)
     })
   }, [productos, categoria, busqueda])
 
@@ -46,12 +48,9 @@ export default function Catalogo() {
           <Search className="absolute top-1/2 left-3.5 -translate-y-1/2 text-slate-400" size={16} />
           <input
             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm text-navy outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-pink-100"
-            placeholder="Buscar por nombre, ej. Koraza, Viniltex..."
+            placeholder="Buscar por nombre o uso, ej. Koraza, fachadas, metal..."
             value={busqueda}
-            onChange={(e) => {
-              setBusqueda(e.target.value)
-              setSearchParams(e.target.value ? { q: e.target.value } : {})
-            }}
+            onChange={(e) => setSearchParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
           />
         </div>
 

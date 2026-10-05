@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Palette, Building2, Sofa, BedDouble, Store, Search, Copy, ShoppingCart } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Button from '@/shared/ui/Button'
-import { useCart } from '@/features/tienda/CartContext'
+import AgregarAlCarritoModal from '@/features/tienda/AgregarAlCarritoModal'
 import { useToast } from '@/shared/lib/toast'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 import { paletaColores, CATEGORIAS_COLOR, type CategoriaColor } from '@/data/paletaColores'
@@ -77,13 +78,20 @@ const ESCENAS: Record<Ambiente, Escena> = {
 }
 
 export default function Simulador() {
-  const { agregarProducto } = useCart()
+  const [searchParams] = useSearchParams()
   const { mostrarToast } = useToast()
   const [ambiente, setAmbiente] = useState<Ambiente>('exterior')
-  const [colorActivo, setColorActivo] = useState(paletaColores.find((c) => c.codigo === 'PNT-501') ?? paletaColores[0])
-  const [categoria, setCategoria] = useState<CategoriaColor>('Tendencias 2026')
+  // ?color=PNT-501 llega desde las tendencias del panel.
+  const [colorActivo, setColorActivo] = useState(
+    () =>
+      paletaColores.find((c) => c.codigo === searchParams.get('color')) ??
+      paletaColores.find((c) => c.codigo === 'PNT-501') ??
+      paletaColores[0],
+  )
+  const [categoria, setCategoria] = useState<CategoriaColor>(colorActivo.categoria)
   const [busqueda, setBusqueda] = useState('')
   const [productos, setProductos] = useState<Producto[]>([])
+  const [productoAComprar, setProductoAComprar] = useState<Producto | null>(null)
   const escena = ESCENAS[ambiente]
 
   useEffect(() => {
@@ -103,10 +111,7 @@ export default function Simulador() {
   }
 
   const handleComprar = () => {
-    const producto = productos.find((p) => p.nombre === escena.productoRecomendado)
-    if (!producto) return
-    agregarProducto(producto)
-    mostrarToast(`${producto.nombre} se agregó al carrito.`)
+    setProductoAComprar(productos.find((p) => p.nombre === escena.productoRecomendado) ?? null)
   }
 
   return (
@@ -261,6 +266,14 @@ export default function Simulador() {
           )}
         </div>
       </Card>
+
+      {productoAComprar && (
+        <AgregarAlCarritoModal
+          producto={productoAComprar}
+          color={colorActivo}
+          onCerrar={() => setProductoAComprar(null)}
+        />
+      )}
     </div>
   )
 }

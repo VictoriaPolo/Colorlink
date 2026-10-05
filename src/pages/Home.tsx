@@ -1,245 +1,314 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowRight,
-  Search,
   ShoppingBag,
   Palette,
   Calculator,
+  Package,
   Sparkles,
-  ShieldCheck,
+  FolderKanban,
+  MapPin,
   Clock,
-  HardHat,
+  ShieldCheck,
+  ChevronRight,
+  Store,
 } from 'lucide-react'
 import Button from '@/shared/ui/Button'
-import Card from '@/shared/ui/Card'
-import HeroIllustration from '@/shared/illustrations/HeroIllustration'
+import Badge from '@/shared/ui/Badge'
 import KitSelector from '@/features/tienda/KitSelector'
 import ProductoCard from '@/features/tienda/ProductoCard'
+import AgregarAlCarritoModal from '@/features/tienda/AgregarAlCarritoModal'
+import { useCart } from '@/features/tienda/CartContext'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
 import { useAuth } from '@/features/auth/AuthContext'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 import { paletaColores } from '@/data/paletaColores'
+import { puntosDeRetiro } from '@/data/puntosDeRetiro'
+import { ORDEN_ESTADOS } from '@/domain/solicitud/types'
 import type { Producto } from '@/domain/tienda/types'
 
-const ACCESOS_RAPIDOS = [
-  { icon: ShoppingBag, titulo: 'Comprar Pinturas', texto: 'Viniltex, Koraza, Aquablock', to: '/catalogo' },
-  { icon: Palette, titulo: 'Encuentra tu Color', texto: 'Simulador en vivo', to: '/simulador' },
-  { icon: Sparkles, titulo: 'Kits de Solución', texto: 'Hasta 15% Dcto', to: '#kits' },
-  { icon: Calculator, titulo: 'Calculadora', texto: 'Galones por m² exactos', to: '/calculadora' },
+const ACCESOS = [
+  {
+    titulo: 'Comprar Pintura',
+    texto: 'Vinilos, fachadas, esmaltes e impermeabilizantes',
+    badge: 'Catálogo oficial',
+    icon: ShoppingBag,
+    color: 'bg-primary',
+    to: '/catalogo',
+  },
+  {
+    titulo: 'Encuentra tu Color',
+    texto: 'Simulador de ambientes y carta de color 2026',
+    badge: 'Visualizador en vivo',
+    icon: Palette,
+    color: 'bg-sky',
+    to: '/simulador',
+  },
+  {
+    titulo: 'Kits de Solución',
+    texto: 'Sistemas multicapa empaquetados con hasta 15% dcto',
+    badge: 'Paquetes con descuento',
+    icon: Package,
+    color: 'bg-amber-500',
+    to: '#kits',
+  },
+  {
+    titulo: 'Calculadora de Metraje',
+    texto: 'Calcula galones y cuñetes según tus m² exactos',
+    badge: 'Cálculo preciso',
+    icon: Calculator,
+    color: 'bg-teal',
+    to: '/calculadora',
+  },
 ]
 
-const BENEFICIOS = [
-  { icon: Sparkles, title: 'Recomendación en minutos', text: 'COLORLINK interpreta tu necesidad y sugiere el sistema Pintuco adecuado.' },
-  { icon: ShieldCheck, title: 'Garantía Directa', text: 'Garantía de fábrica Pintuco de 5 a 8 años según el sistema aplicado.' },
-  { icon: Palette, title: 'Color Computarizado', text: '+1.000 tonos exactos al instante en nuestro simulador.' },
-  { icon: HardHat, title: 'Asesoría en Obra', text: 'Acompañamiento técnico B2B para constructoras y contratistas.' },
-]
+const CIUDADES_RETIRO = new Intl.ListFormat('es', { type: 'disjunction' }).format([
+  ...new Set(puntosDeRetiro.map((p) => p.ciudad)),
+])
 
+/** Panel del cliente (equivalente a /panel de la tienda de referencia). */
 export default function Home() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { usuario } = useAuth()
-  const { solicitudes, cargando } = useSolicitudes()
-  const [busqueda, setBusqueda] = useState('')
-  const [destacados, setDestacados] = useState<Producto[]>([])
+  const { proyectoActivo: proyecto } = useSolicitudes()
+  const { puntoRetiro } = useCart()
+  const [productos, setProductos] = useState<Producto[]>([])
+  const [comprarMateriales, setComprarMateriales] = useState(false)
 
   useEffect(() => {
-    tiendaRepository.listarProductos().then((data) => setDestacados(data.filter((p) => p.destacado)))
+    tiendaRepository.listarProductos().then(setProductos)
   }, [])
 
   if (usuario?.rol === 'admin') return <Navigate to="/admin" replace />
 
   const nombre = usuario?.nombre.split(' ')[0] ?? ''
-  const activas = solicitudes.filter((s) => s.estado !== 'Finalizada').length
+  const productoProyecto = proyecto && productos.find((p) => p.nombre === proyecto.recomendacion.producto)
+  const destacados = productos.filter((p) => p.destacado).slice(0, 4)
+  const tendencias = paletaColores.filter((c) => c.categoria === 'Tendencias 2026').slice(0, 6)
 
-  const handleBuscar = (e: FormEvent) => {
-    e.preventDefault()
-    navigate(busqueda ? `/catalogo?q=${encodeURIComponent(busqueda)}` : '/catalogo')
-  }
+  const irA = (to: string) =>
+    to.startsWith('#') ? document.getElementById(to.slice(1))?.scrollIntoView({ behavior: 'smooth' }) : navigate(to)
 
   return (
-    <div className="flex flex-col">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
       {/* HERO */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-white to-surface-muted">
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-navy via-primary-dark to-teal p-6 text-white shadow-soft-lg sm:p-8">
+        <div className="relative z-10 flex max-w-2xl flex-col gap-3">
+          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-navy">
+            <Sparkles size={14} className="text-primary" /> Ecosistema Digital Pintuco • Todo para tu obra y hogar
+          </span>
+          {nombre && <p className="text-sm font-semibold text-pink-100">Hola, {nombre} 👋</p>}
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+            ¿Qué necesitas resolver con Pintuco hoy?
+          </h1>
+          <p className="text-sm font-medium leading-relaxed text-pink-100">
+            Compra pinturas originales, simula colores en vivo, calcula los galones exactos de tu espacio o gestiona
+            tus obras con respaldo técnico certificado.
+          </p>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <button
+              onClick={() => navigate('/catalogo')}
+              className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-extrabold text-primary-dark shadow-soft transition-colors hover:bg-pink-50"
+            >
+              <ShoppingBag size={16} /> Explorar tienda online
+            </button>
+            <button
+              onClick={() => navigate('/simulador')}
+              className="flex items-center gap-2 rounded-xl border border-white/25 bg-white/15 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/25"
+            >
+              <Palette size={16} /> Simular color en ambientes
+            </button>
+            <button
+              onClick={() => navigate('/mis-solicitudes')}
+              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-xs font-semibold text-pink-100 transition-colors hover:bg-white/20"
+            >
+              <FolderKanban size={16} /> Mis solicitudes de obra
+            </button>
+          </div>
+        </div>
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-gradient-to-br from-pink-300 to-fuchsia-300 opacity-40 blur-3xl"
+          className="pointer-events-none absolute -right-10 -bottom-10 h-96 w-96 rounded-full bg-pink-300/20 blur-3xl"
         />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute top-10 -right-32 h-96 w-96 rounded-full bg-gradient-to-br from-violet-300 to-purple-300 opacity-40 blur-3xl"
-        />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
-          <div className="animate-slide-up">
-            <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-primary">
-              <Sparkles size={13} /> Ecosistema Digital Oficial de Pinturas Pintuco
-            </span>
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-navy sm:text-5xl">
-              Todo lo que necesitas para tu espacio, con la garantía{' '}
-              <span className="bg-gradient-to-r from-primary to-teal bg-clip-text text-transparent">COLORLINK</span>
-            </h1>
-            <p className="mt-5 max-w-lg text-base text-body sm:text-lg">
-              Compra pinturas Pintuco originales, simula paletas de color en vivo, calcula galones exactos para tu
-              metraje y diagnostica la necesidad de tu espacio con garantía certificada.
-            </p>
+      </section>
 
-            <form onSubmit={handleBuscar} className="relative mt-8 max-w-lg">
-              <Search className="absolute top-1/2 left-4 -translate-y-1/2 text-slate-400" size={17} />
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pr-32 pl-11 text-sm text-navy shadow-soft outline-none focus:border-primary focus:ring-4 focus:ring-pink-100"
-                placeholder="¿Qué necesitas? Ej: Fachada 85 m², Koraza..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-              />
-              <button
-                type="submit"
-                className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary-dark"
-              >
-                Buscar Solución
-              </button>
-            </form>
+      {/* ACCESOS */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {ACCESOS.map(({ titulo, texto, badge, icon: Icon, color, to }) => (
+          <button
+            key={titulo}
+            onClick={() => irA(to)}
+            className="group flex flex-col justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-5 text-left shadow-soft transition-all hover:border-pink-200 hover:shadow-soft-lg"
+          >
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-soft transition-transform group-hover:scale-105 ${color}`}
+                >
+                  <Icon size={20} />
+                </span>
+                <span className="text-[10px] font-bold uppercase text-slate-400">{badge}</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-navy transition-colors group-hover:text-primary">{titulo}</h3>
+                <p className="mt-1 text-xs leading-relaxed text-body">{texto}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-xs font-bold text-primary">
+              <span>Comenzar</span>
+              <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+            </div>
+          </button>
+        ))}
+      </section>
 
-            <div className="mt-6 flex flex-wrap items-center gap-4">
-              <Button size="lg" icon={<ArrowRight size={18} />} onClick={() => navigate('/catalogo')}>
-                Comprar Pinturas
+      {/* PROYECTO ACTIVO */}
+      {proyecto && (
+        <section className="rounded-2xl border border-pink-200 bg-white p-6 shadow-soft">
+          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+            <div className="flex max-w-2xl flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5 rounded-full border border-pink-200 bg-pink-50 px-2.5 py-0.5 text-xs font-bold text-primary">
+                  <FolderKanban size={14} /> Proyecto activo • {proyecto.id}
+                </span>
+                <Badge estado={proyecto.estado} />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-navy sm:text-xl">
+                  {proyecto.data.proyecto.tipoObra} — {proyecto.data.identificacion.cliente} (
+                  {proyecto.data.proyecto.areaAprox} m² • {proyecto.data.tecnica.superficie})
+                </h2>
+                {proyecto.data.evidencia.descripcion && (
+                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-body">
+                    {proyecto.data.evidencia.descripcion}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500">
+                <span className="flex items-center gap-1">
+                  <MapPin size={14} className="text-primary" /> {proyecto.data.proyecto.ciudad}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock size={14} className="text-slate-400" /> Paso {ORDEN_ESTADOS.indexOf(proyecto.estado) + 1} de{' '}
+                  {ORDEN_ESTADOS.length}
+                </span>
+                <span className="flex items-center gap-1">
+                  <ShieldCheck size={14} className="text-success" /> Sistema {proyecto.recomendacion.producto} asignado
+                </span>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+              <Button onClick={() => navigate(`/mis-solicitudes/${proyecto.id}`)}>
+                Ver diagnóstico y ficha de obra <ChevronRight size={15} />
               </Button>
-              <Button size="lg" variant="secondary" onClick={() => navigate('/solicitar')}>
-                Diagnóstico B2B
-              </Button>
+              {productoProyecto && (
+                <button
+                  onClick={() => setComprarMateriales(true)}
+                  className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-center text-xs font-bold text-primary transition-colors hover:bg-pink-100"
+                >
+                  + Comprar materiales del proyecto
+                </button>
+              )}
             </div>
           </div>
+        </section>
+      )}
 
-          <div className="relative mx-auto w-full max-w-md animate-fade-in lg:max-w-none">
-            <HeroIllustration />
-          </div>
-        </div>
-      </section>
+      {/* DIAGNÓSTICO Y KITS — la key lo remonta si llega otro ?kit= estando ya en el panel */}
+      <KitSelector key={searchParams.get('kit') ?? ''} />
 
-      {/* FRANJA DE CUENTA (compacta) */}
-      <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <Card
-          onClick={() => navigate('/mis-solicitudes')}
-          className="flex cursor-pointer flex-wrap items-center justify-between gap-3 p-4"
-        >
-          <span className="text-sm text-body">
-            Hola, <span className="font-bold text-navy">{nombre}</span> — tienes{' '}
-            <span className="font-bold text-primary">{cargando ? '...' : activas}</span> solicitud
-            {activas === 1 ? '' : 'es'} activa{activas === 1 ? '' : 's'}
-          </span>
-          <span className="text-sm font-semibold text-primary">Ver mis solicitudes →</span>
-        </Card>
-      </section>
-
-      {/* ACCESOS RÁPIDOS */}
-      <section className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {ACCESOS_RAPIDOS.map(({ icon: Icon, titulo, texto, to }) => (
-            <button
-              key={titulo}
-              onClick={() => (to.startsWith('#') ? document.getElementById('kits')?.scrollIntoView({ behavior: 'smooth' }) : navigate(to))}
-              className="group flex flex-col items-start gap-3 rounded-2xl border border-slate-100 bg-white p-5 text-left shadow-soft transition-transform hover:-translate-y-0.5"
-            >
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-pink-50 text-primary transition-transform group-hover:scale-105">
-                <Icon size={20} />
-              </span>
-              <div>
-                <h3 className="text-sm font-bold text-navy">{titulo}</h3>
-                <p className="text-xs text-slate-400">{texto}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* BENEFICIOS */}
-      <section className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {BENEFICIOS.map(({ icon: Icon, title, text }) => (
-            <Card key={title} className="flex flex-col gap-3 p-6">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-fuchsia-50 text-teal">
-                <Icon size={20} />
-              </span>
-              <h3 className="text-sm font-bold text-navy">{title}</h3>
-              <p className="text-xs text-body">{text}</p>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* KITS POR PATOLOGÍA */}
-      <section id="kits" className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="mb-6 text-center">
-          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-primary">
-            Solución técnica en 1 clic
-          </span>
-          <h2 className="text-2xl font-bold text-navy">¿Cuál es la patología o necesidad de tu espacio?</h2>
-          <p className="mt-1 text-body">Selecciona tu caso y obtén el sistema Pintuco recomendado con cantidades calculadas.</p>
-        </div>
-        <KitSelector />
-      </section>
-
-      {/* CATÁLOGO DESTACADO */}
-      <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      {/* MÁS VENDIDAS */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-400">
-              Catálogo Oficial Pintuco
-            </span>
-            <h2 className="text-2xl font-bold text-navy">Pinturas Más Vendidas</h2>
+            <h2 className="text-lg font-extrabold text-navy sm:text-xl">Pinturas más vendidas Pintuco</h2>
+            <p className="text-xs font-medium text-body">Líneas arquitectónicas e industriales con mayor demanda en Colombia</p>
           </div>
-          <button onClick={() => navigate('/catalogo')} className="text-sm font-semibold text-primary hover:underline">
-            Ver todo el catálogo →
+          <button
+            onClick={() => navigate('/catalogo')}
+            className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline"
+          >
+            Ver todo el catálogo <ArrowRight size={14} />
           </button>
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {destacados.map((producto) => (
             <ProductoCard key={producto.id} producto={producto} />
           ))}
         </div>
       </section>
 
-      {/* TENDENCIAS DE COLOR */}
-      <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <Card className="flex flex-col items-center gap-6 p-8 text-center">
+      {/* TENDENCIAS */}
+      <section className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft">
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
           <div>
-            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-400">
-              Tendencias del Color 2026
+            <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-bold uppercase text-violet-700">
+              Colección Tendencias 2026
             </span>
-            <h2 className="text-2xl font-bold text-navy">Descubre el Color Perfecto para tus Espacios</h2>
+            <h2 className="mt-1 text-lg font-extrabold text-navy">Colores diseñados para transformar espacios</h2>
           </div>
-          <div className="flex flex-wrap justify-center gap-3">
-            {paletaColores
-              .filter((c) => c.categoria === 'Tendencias 2026')
-              .slice(0, 6)
-              .map((c) => (
+          <button
+            onClick={() => navigate('/simulador')}
+            className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline"
+          >
+            Simular en paredes <ArrowRight size={14} />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+          {tendencias.map((c) => (
+            <button
+              key={c.codigo}
+              onClick={() => navigate(`/simulador?color=${c.codigo}`)}
+              className="group flex flex-col gap-2 rounded-xl border border-slate-100 bg-surface-muted p-3 text-left transition-colors hover:border-pink-300"
+            >
               <span
-                key={c.codigo}
-                className="h-10 w-10 rounded-full border border-slate-200"
+                className="h-14 w-full rounded-lg border border-slate-200 transition-transform group-hover:scale-105"
                 style={{ backgroundColor: c.hex }}
-                title={c.nombre}
               />
-            ))}
-          </div>
-          <Button icon={<Palette size={16} />} onClick={() => navigate('/simulador')}>
-            Abrir Simulador de Ambientes
-          </Button>
-        </Card>
+              <span>
+                <span className="block text-[9px] font-bold uppercase text-slate-400">{c.codigo}</span>
+                <span className="block truncate text-xs font-bold text-navy">{c.nombre}</span>
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
 
-      {/* B2B */}
-      <section className="mx-auto w-full max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-        <Card className="flex flex-col items-center gap-4 bg-navy p-10 text-center text-white">
-          <HardHat size={28} />
-          <h2 className="text-2xl font-bold">¿Gestionas proyectos u obras de gran metraje?</h2>
-          <p className="max-w-xl text-sm text-purple-100">
-            Registra tu obra en COLORLINK para recibir diagnóstico técnico, precios mayoristas y despacho
-            programado.
-          </p>
-          <Button icon={<Clock size={16} />} onClick={() => navigate('/solicitar')}>
-            Iniciar Diagnóstico B2B
-          </Button>
-        </Card>
+      {/* RETIRO EN TIENDA */}
+      <section className="flex flex-col items-center justify-between gap-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft md:flex-row">
+        <div className="flex items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-primary">
+            <Store size={24} />
+          </span>
+          <div>
+            <h3 className="text-sm font-extrabold text-navy">Retiro gratis en tienda y asesoría técnica en obra</h3>
+            <p className="mt-1 max-w-xl text-xs text-body">
+              Selecciona tu tienda en {CIUDADES_RETIRO}. Recoge tu pedido listo en 2 horas con mezcla de color
+              computarizada y asesoría gratuita. Tu tienda actual:{' '}
+              <strong className="text-navy">
+                {puntoRetiro.nombre} ({puntoRetiro.ciudad})
+              </strong>
+              .
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/puntos-de-retiro')}
+          className="w-full shrink-0 rounded-xl bg-primary px-4 py-2.5 text-center text-xs font-bold text-white shadow-soft transition-colors hover:bg-primary-dark md:w-auto"
+        >
+          Ver tiendas y horarios
+        </button>
       </section>
+
+      {comprarMateriales && productoProyecto && (
+        <AgregarAlCarritoModal
+          producto={productoProyecto}
+          presentacionInicial="Cuñete 5 galones (18.9 L)"
+          onCerrar={() => setComprarMateriales(false)}
+        />
+      )}
     </div>
   )
 }

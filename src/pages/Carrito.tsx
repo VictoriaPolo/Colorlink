@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShoppingCart, Trash2, Minus, Plus, CheckCircle2 } from 'lucide-react'
+import { ShoppingCart, Trash2, Minus, Plus, CheckCircle2, MapPin } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Button from '@/shared/ui/Button'
 import FormField, { controlClass } from '@/shared/ui/FormField'
@@ -14,7 +14,7 @@ const formatoCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency:
 export default function Carrito() {
   const navigate = useNavigate()
   const { usuario } = useAuth()
-  const { items, total, actualizarCantidad, quitarItem, confirmarPedido } = useCart()
+  const { items, total, actualizarCantidad, quitarItem, confirmarPedido, puntoRetiro } = useCart()
   const { mostrarToast } = useToast()
   const [email, setEmail] = useState(usuario?.email ?? '')
   const [enviando, setEnviando] = useState(false)
@@ -39,7 +39,8 @@ export default function Carrito() {
         <h1 className="text-2xl font-extrabold text-navy">¡Pedido confirmado!</h1>
         <p className="mt-2 text-body">
           Tu pedido <span className="font-semibold text-navy">{pedidoConfirmado.id}</span> por{' '}
-          {formatoCOP.format(pedidoConfirmado.total)} fue recibido. Te contactaremos para coordinar el retiro.
+          {formatoCOP.format(pedidoConfirmado.total)} fue recibido. Estará listo para retirar en {puntoRetiro.nombre} (
+          {puntoRetiro.ciudad}) en 2 horas.
         </p>
         <Button className="mt-6" onClick={() => navigate('/catalogo')}>
           Seguir comprando
@@ -64,7 +65,7 @@ export default function Carrito() {
         <>
           <Card className="mb-6 divide-y divide-slate-50">
             {items.map((item) => (
-              <div key={item.productoId} className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div key={`${item.productoId}-${item.nombre}`} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div>
                   <p className="text-sm font-bold text-navy">{item.nombre}</p>
                   <p className="text-xs text-slate-400">{formatoCOP.format(item.precioUnitario)} c/u</p>
@@ -72,7 +73,7 @@ export default function Carrito() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 rounded-full bg-slate-100 px-2 py-1">
                     <button
-                      onClick={() => actualizarCantidad(item.productoId, item.cantidad - 1)}
+                      onClick={() => actualizarCantidad(item, item.cantidad - 1)}
                       className="flex h-6 w-6 items-center justify-center rounded-full text-navy hover:bg-white"
                       aria-label="Restar"
                     >
@@ -80,7 +81,7 @@ export default function Carrito() {
                     </button>
                     <span className="w-5 text-center text-sm font-semibold text-navy">{item.cantidad}</span>
                     <button
-                      onClick={() => actualizarCantidad(item.productoId, item.cantidad + 1)}
+                      onClick={() => actualizarCantidad(item, item.cantidad + 1)}
                       className="flex h-6 w-6 items-center justify-center rounded-full text-navy hover:bg-white"
                       aria-label="Sumar"
                     >
@@ -91,7 +92,7 @@ export default function Carrito() {
                     {formatoCOP.format(item.precioUnitario * item.cantidad)}
                   </p>
                   <button
-                    onClick={() => quitarItem(item.productoId)}
+                    onClick={() => quitarItem(item)}
                     className="text-slate-300 hover:text-red-500"
                     aria-label={`Quitar ${item.nombre}`}
                   >
@@ -106,6 +107,22 @@ export default function Carrito() {
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
               <span className="text-sm font-semibold text-body">Total</span>
               <span className="text-2xl font-extrabold text-primary">{formatoCOP.format(total)}</span>
+            </div>
+
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-surface-muted p-3 text-xs">
+              <span className="flex items-center gap-2 text-body">
+                <MapPin size={15} className="shrink-0 text-primary" />
+                <span>
+                  Retiro en <strong className="text-navy">{puntoRetiro.nombre}</strong> ({puntoRetiro.ciudad}) · listo en 2
+                  horas
+                </span>
+              </span>
+              <button
+                onClick={() => navigate('/puntos-de-retiro')}
+                className="shrink-0 font-bold text-primary hover:underline"
+              >
+                Cambiar
+              </button>
             </div>
 
             <FormField label="Correo para confirmación (opcional)">

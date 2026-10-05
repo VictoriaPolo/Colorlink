@@ -33,6 +33,8 @@ export interface Kit {
   descuentoPct: number
 }
 
+export type Presentacion = 'Galón (3.78 L)' | 'Cuñete 5 galones (18.9 L)'
+
 export interface ItemCarrito {
   productoId: number
   nombre: string

@@ -1,4 +1,18 @@
+import type { Presentacion } from './types'
+
 export type CondicionSuperficie = 'Sellada' | 'Revoque nuevo' | 'Concreto poroso'
+
+export const PRESENTACIONES: Presentacion[] = ['Galón (3.78 L)', 'Cuñete 5 galones (18.9 L)']
+
+/** Un cuñete = 5 galones con 12% de descuento mayorista (no hay un precio de
+ * cuñete real en el catálogo). */
+export function precioCunete(precioGalon: number): number {
+  return Math.round(precioGalon * 5 * 0.88)
+}
+
+export function precioPresentacion(precioGalon: number, presentacion: Presentacion): number {
+  return presentacion === 'Cuñete 5 galones (18.9 L)' ? precioCunete(precioGalon) : precioGalon
+}
 
 /** Sustratos más porosos consumen más pintura por m² -- multiplicador sobre
  * el rendimiento base del producto. */
@@ -32,18 +46,15 @@ export interface Empaque {
 
 /**
  * Combina cuñetes de 5 galones + galones sueltos para cubrir `galonesNecesarios`,
- * priorizando cuñetes porque su precio por galón es menor (se asume 12% de
- * descuento mayorista sobre 5 galones sueltos, no hay un precio de cuñete real
- * en el catálogo).
+ * priorizando cuñetes porque su precio por galón es menor (ver precioCunete).
  * ponytail: no evalúa si comprar un cuñete de más sale más barato que las
  * unidades sueltas del resto -- simplificación razonable para el alcance del
  * prototipo, ajustar si algún caso real lo requiere.
  */
 export function calcularEmpaqueOptimo(galonesNecesarios: number, precioGalon: number): Empaque {
   const totalGalones = Math.ceil(galonesNecesarios)
-  const precioCunete = Math.round(precioGalon * 5 * 0.88)
   const cunetes = Math.floor(totalGalones / 5)
   const galonesSueltos = totalGalones - cunetes * 5
-  const costoTotal = cunetes * precioCunete + galonesSueltos * precioGalon
-  return { cunetes, galonesSueltos, precioCunete, costoTotal }
+  const costoTotal = cunetes * precioCunete(precioGalon) + galonesSueltos * precioGalon
+  return { cunetes, galonesSueltos, precioCunete: precioCunete(precioGalon), costoTotal }
 }

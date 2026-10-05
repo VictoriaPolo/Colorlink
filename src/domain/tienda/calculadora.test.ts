@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularGalones, calcularEmpaqueOptimo } from './calculadora'
+import { calcularGalones, calcularEmpaqueOptimo, precioPresentacion } from './calculadora'
 
 describe('calcularGalones', () => {
   it('calcula proporcional al área y al rendimiento del producto', () => {
@@ -43,5 +43,12 @@ describe('calcularEmpaqueOptimo', () => {
     const empaque = calcularEmpaqueOptimo(6, 100000)
     // 1 cuñete a 88% de 5 galones + 1 galón suelto
     expect(empaque.costoTotal).toBe(440000 + 100000)
+  })
+})
+
+describe('precioPresentacion', () => {
+  it('cobra el galón a precio de lista y el cuñete con el descuento mayorista', () => {
+    expect(precioPresentacion(100000, 'Galón (3.78 L)')).toBe(100000)
+    expect(precioPresentacion(100000, 'Cuñete 5 galones (18.9 L)')).toBe(440000)
   })
 })
