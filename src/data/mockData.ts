@@ -37,7 +37,7 @@ export const solicitudesIniciales: Solicitud[] = [
     },
     recomendacion: {
       tipoSolucion: 'Sistema de recubrimiento para exterior',
-      producto: 'Recubrimiento acrílico de alta resistencia climática',
+      producto: 'Koraza 5 Años Protección Total',
       acabado: 'Satinado',
       cantidadEstimada: '8 unidades (aprox. 120 m²)',
       aplicacion: '2 capas',

@@ -130,5 +130,5 @@ select id, 'Fachada de edificio residencial de 6 pisos, requiere renovación de 
 from solicitudes where id = 'CL-1001';
 
 insert into recomendaciones (solicitud_id, tipo_solucion, producto, acabado, cantidad_estimada, aplicacion, tiempo_estimado, estado_texto)
-select id, 'Sistema de recubrimiento para exterior', 'Recubrimiento acrílico de alta resistencia climática', 'Satinado', '8 unidades (aprox. 120 m²)', '2 capas', '3 a 4 días', 'Recomendación preliminar'
+select id, 'Sistema de recubrimiento para exterior', 'Koraza 5 Años Protección Total', 'Satinado', '8 unidades (aprox. 120 m²)', '2 capas', '3 a 4 días', 'Recomendación preliminar'
 from solicitudes where id = 'CL-1001';

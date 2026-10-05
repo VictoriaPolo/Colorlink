@@ -29,7 +29,7 @@ select id, 'Fachada de edificio de 12 pisos con pintura desgastada por sol y llu
 from solicitudes where fecha_solicitud = '2026-08-20';
 
 insert into recomendaciones (solicitud_id, tipo_solucion, producto, acabado, cantidad_estimada, aplicacion, tiempo_estimado, estado_texto)
-select id, 'Sistema de recubrimiento de alta exposición', 'Recubrimiento elastomérico protector UV', 'Satinado (sugerido para exteriores)', '17 unidades (aprox. 250 m²)', '2 capas', '5 a 7 días', 'Recomendación preliminar'
+select id, 'Sistema de recubrimiento de alta exposición', 'Masilla Elastomérica + Koraza', 'Satinado (sugerido para exteriores)', '17 unidades (aprox. 250 m²)', '2 capas', '5 a 7 días', 'Recomendación preliminar'
 from solicitudes where fecha_solicitud = '2026-08-20';
 
 -- Solicitud: Cali, Local comercial, en "En abastecimiento"
@@ -55,7 +55,7 @@ select id, 'Local comercial en remodelación, cambio de imagen de marca.', '', t
 from solicitudes where fecha_solicitud = '2026-08-28';
 
 insert into recomendaciones (solicitud_id, tipo_solucion, producto, acabado, cantidad_estimada, aplicacion, tiempo_estimado, estado_texto)
-select id, 'Sistema de recubrimiento para interior', 'Pintura interior de bajo olor y alta cubrición', 'Mate', '6 unidades (aprox. 90 m²)', '2 capas', '2 a 3 días', 'Recomendación preliminar'
+select id, 'Sistema de recubrimiento para interior', 'Viniltex', 'Mate', '6 unidades (aprox. 90 m²)', '2 capas', '2 a 3 días', 'Recomendación preliminar'
 from solicitudes where fecha_solicitud = '2026-08-28';
 
 -- Solicitud: Barranquilla, Bodega, en "Servicio programado" (con advertencia)
@@ -83,7 +83,7 @@ from solicitudes where fecha_solicitud = '2026-08-10';
 
 with r as (
   insert into recomendaciones (solicitud_id, tipo_solucion, producto, acabado, cantidad_estimada, aplicacion, tiempo_estimado, estado_texto)
-  select id, 'Sistema de recubrimiento industrial anticorrosivo', 'Esmalte industrial de alto desempeño', 'Brillante', '34 unidades (aprox. 500 m²)', '1 capa base + 2 capas de acabado', '5 a 7 días', 'Recomendación preliminar'
+  select id, 'Sistema de recubrimiento industrial anticorrosivo', 'Pintulux 3 en 1 Anticorrosivo + Esmalte', 'Brillante', '34 unidades (aprox. 500 m²)', '1 capa base + 2 capas de acabado', '5 a 7 días', 'Recomendación preliminar'
   from solicitudes where fecha_solicitud = '2026-08-10'
   returning id
 )
@@ -114,7 +114,7 @@ select id, 'Oficinas nuevas, primera mano de pintura antes de mudanza.', '', tru
 from solicitudes where fecha_solicitud = '2026-07-15';
 
 insert into recomendaciones (solicitud_id, tipo_solucion, producto, acabado, cantidad_estimada, aplicacion, tiempo_estimado, estado_texto)
-select id, 'Sistema de recubrimiento para interior', 'Pintura interior de bajo olor y alta cubrición', 'Satinado', '10 unidades (aprox. 150 m²)', '2 capas', '3 a 4 días', 'Recomendación preliminar'
+select id, 'Sistema de recubrimiento para interior', 'Viniltex', 'Satinado', '10 unidades (aprox. 150 m²)', '2 capas', '3 a 4 días', 'Recomendación preliminar'
 from solicitudes where fecha_solicitud = '2026-07-15';
 
 -- Solicitud: Pereira, Vivienda, recién "En análisis" (con advertencia de humedad)
@@ -141,7 +141,7 @@ from solicitudes where fecha_solicitud = '2026-09-15';
 
 with r as (
   insert into recomendaciones (solicitud_id, tipo_solucion, producto, acabado, cantidad_estimada, aplicacion, tiempo_estimado, estado_texto)
-  select id, 'Sistema de recubrimiento para concreto', 'Recubrimiento sellador para concreto', 'Satinado (sugerido para exteriores)', '4 unidades (aprox. 60 m²)', '2 capas', '2 a 3 días', 'Recomendación preliminar'
+  select id, 'Sistema de recubrimiento para concreto', 'Vinilico Concreto', 'Satinado (sugerido para exteriores)', '4 unidades (aprox. 60 m²)', '2 capas', '2 a 3 días', 'Recomendación preliminar'
   from solicitudes where fecha_solicitud = '2026-09-15'
   returning id
 )

@@ -25,7 +25,7 @@ export function generarRecomendacion(data: SolicitudFormData): Recomendacion {
     producto = 'Pintulux 3 en 1 Anticorrosivo + Esmalte'
   } else if (tecnica.ambiente === 'Alta exposición' || tecnica.superficie === 'Fachada') {
     tipoSolucion = 'Sistema de recubrimiento de alta exposición'
-    producto = 'Masilla Elastomérica + Koraza 5 Años'
+    producto = 'Masilla Elastomérica + Koraza'
   } else if (tecnica.superficie === 'Madera') {
     tipoSolucion = 'Sistema de protección y acabado para madera'
     producto = 'Madetec Protector para Madera'
