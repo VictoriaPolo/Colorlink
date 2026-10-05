@@ -33,14 +33,16 @@ src/
     solicitudes/  Todo lo específico del dominio "solicitud": wizard, contexto de estado
     tienda/       Carrito (CartContext), tarjeta de producto, ventana de compra, selector de
                   kits, buscador con sugerencias
-    chat/         Widget flotante del asistente virtual "Coli" (solo clientes)
+    chat/         Widget del asistente virtual "Coli" (solo clientes), con dictado por voz
+                  y lectura de respuestas en voz alta (Web Speech API, sin librerías)
     auth/         Login simulado, sesión, ruta protegida
   domain/
     solicitud/    Reglas de negocio puras: tipos, motor de recomendación,
                   máquina de estados, validaciones (zod) — sin dependencias de React
     tienda/       Tipos de la tienda (Producto, Kit, Pedido), calculadora de pintura,
                   precios por presentación y búsqueda en el catálogo
-    chat/         Respuestas del asistente por palabras clave (pedidos, productos, tienda)
+    chat/         Respuestas del asistente por palabras clave; solo atiende temas de la
+                  tienda y rechaza lo demás (fútbol, política, etc.)
   data/
     mockData.ts          Datos semilla de solicitudes (respaldo local, ver supabaseClient.ts)
     paletaColores.ts      Paleta de marca fija para el simulador de color
@@ -128,4 +130,4 @@ sin cambiar el esquema de `pedidos`. El punto de retiro elegido también vive en
 - `features/auth/mockUsuarios.test.ts` — validación de credenciales y asignación de rol
 - `features/solicitudes/wizard/WizardPage.test.tsx` — recorrido completo del wizard (integración)
 - `domain/tienda/calculadora.test.ts` — redondeo de galones de la calculadora de pintura
-- `domain/chat/asistenteVirtual.test.ts` — respuestas del asistente según la pregunta y los pedidos
+- `domain/chat/asistenteVirtual.test.ts` — respuestas del asistente según la pregunta y los pedidos, y rechazo de temas ajenos

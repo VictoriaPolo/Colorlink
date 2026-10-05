@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MessageCircle, Send, X, Droplets } from 'lucide-react'
+import { MessageCircle, Send, X, Droplets, Mic, Square, Volume2, VolumeX } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
-import { generarRespuestaChat, PREGUNTAS_SUGERIDAS } from '@/domain/chat/asistenteVirtual'
+import { generarRespuestaChat, PREGUNTAS_SUGERIDAS, type RespuestaChat } from '@/domain/chat/asistenteVirtual'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 import type { Pedido } from '@/domain/tienda/types'
+import { useDictado, hablar, callar } from './voz'
 
-interface Mensaje {
+interface Mensaje extends RespuestaChat {
   id: number
   autor: 'bot' | 'usuario'
-  texto: string
-  ruta?: string
-  etiquetaRuta?: string
 }
 
 export default function ChatWidget() {
@@ -22,15 +20,10 @@ export default function ChatWidget() {
   const [escribiendo, setEscribiendo] = useState(false)
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
+  // Leer las respuestas en voz alta: se enciende sola al usar el micrófono.
+  const [vozActiva, setVozActiva] = useState(false)
   const idRef = useRef(0)
-
-  useEffect(() => {
-    if (!usuario || usuario.rol !== 'cliente') return
-    tiendaRepository.listarPedidosPorEmail(usuario.email).then(setPedidos)
-    setMensajes([{ id: idRef.current++, autor: 'bot', ...generarRespuestaChat('hola', [], usuario.nombre) }])
-  }, [usuario?.email])
-
-  if (usuario?.rol !== 'cliente') return null
+  const finRef = useRef<HTMLDivElement>(null)
 
   const enviarTexto = (texto: string) => {
     if (!texto.trim()) return
@@ -42,18 +35,53 @@ export default function ChatWidget() {
       const respuesta = generarRespuestaChat(texto, pedidos, usuario!.nombre)
       setMensajes((prev) => [...prev, { id: idRef.current++, autor: 'bot', ...respuesta }])
       setEscribiendo(false)
+      if (vozActiva) hablar(respuesta.texto)
     }, 500)
   }
+
+  const dictado = useDictado(enviarTexto)
+
+  useEffect(() => {
+    if (!usuario || usuario.rol !== 'cliente') return
+    tiendaRepository.listarPedidosPorEmail(usuario.email).then(setPedidos)
+    setMensajes([{ id: idRef.current++, autor: 'bot', ...generarRespuestaChat('hola', [], usuario.nombre) }])
+  }, [usuario?.email])
+
+  useEffect(() => {
+    finRef.current?.scrollIntoView({ block: 'end' })
+  }, [mensajes, escribiendo])
+
+  if (usuario?.rol !== 'cliente') return null
 
   const handleEnviar = (e: FormEvent) => {
     e.preventDefault()
     enviarTexto(input.trim())
   }
 
-  const irA = (ruta: string) => {
-    navigate(ruta)
+  const handleMicrofono = () => {
+    if (dictado.escuchando) return dictado.detener()
+    setVozActiva(true)
+    dictado.escuchar()
+  }
+
+  const alternarVoz = () => {
+    if (vozActiva) callar()
+    setVozActiva(!vozActiva)
+  }
+
+  const cerrar = () => {
+    callar()
+    dictado.detener()
     setAbierto(false)
   }
+
+  const irA = (ruta: string) => {
+    navigate(ruta)
+    cerrar()
+  }
+
+  const ultimo = mensajes[mensajes.length - 1]
+  const mostrarSugerencias = !escribiendo && ultimo?.autor === 'bot' && (mensajes.length === 1 || ultimo.fueraDeAlcance)
 
   if (!abierto) {
     return (
@@ -77,12 +105,22 @@ export default function ChatWidget() {
           </span>
           <span className="flex flex-col leading-tight">
             <span className="text-sm font-bold">Coli · Asistente COLORLINK</span>
-            <span className="text-[11px] text-white/80">Con IA · consulta tu catálogo</span>
+            <span className="text-[11px] text-white/80">Solo temas de la tienda · por texto o voz</span>
           </span>
         </span>
-        <button onClick={() => setAbierto(false)} aria-label="Cerrar asistente" className="rounded p-0.5 hover:bg-white/20">
-          <X size={18} />
-        </button>
+        <span className="flex items-center gap-1">
+          <button
+            onClick={alternarVoz}
+            aria-label={vozActiva ? 'Dejar de leer las respuestas en voz alta' : 'Leer las respuestas en voz alta'}
+            title={vozActiva ? 'Respuestas en voz alta: activadas' : 'Respuestas en voz alta: desactivadas'}
+            className="rounded p-1 hover:bg-white/20"
+          >
+            {vozActiva ? <Volume2 size={17} /> : <VolumeX size={17} />}
+          </button>
+          <button onClick={cerrar} aria-label="Cerrar asistente" className="rounded p-1 hover:bg-white/20">
+            <X size={18} />
+          </button>
+        </span>
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
@@ -106,7 +144,7 @@ export default function ChatWidget() {
           </div>
         ))}
 
-        {mensajes.length === 1 && !escribiendo && (
+        {mostrarSugerencias && (
           <div className="flex flex-wrap gap-2 pt-1">
             {PREGUNTAS_SUGERIDAS.map((pregunta) => (
               <button
@@ -125,22 +163,41 @@ export default function ChatWidget() {
             <div className="rounded-2xl bg-slate-100 px-3.5 py-2 text-sm text-slate-400">Escribiendo…</div>
           </div>
         )}
+        <div ref={finRef} />
       </div>
 
-      <form onSubmit={handleEnviar} className="flex items-center gap-2 border-t border-slate-100 p-3">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Escríbele a Coli..."
-          className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-pink-100"
-        />
-        <button
-          type="submit"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white hover:bg-primary-dark"
-          aria-label="Enviar mensaje"
-        >
-          <Send size={16} />
-        </button>
+      <form onSubmit={handleEnviar} className="border-t border-slate-100 p-3">
+        <div className="flex items-center gap-2">
+          <input
+            value={dictado.escuchando ? dictado.parcial : input}
+            onChange={(e) => setInput(e.target.value)}
+            readOnly={dictado.escuchando}
+            placeholder={dictado.escuchando ? 'Te escucho…' : 'Escríbele o háblale a Coli...'}
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-pink-100"
+          />
+          <button
+            type="button"
+            onClick={handleMicrofono}
+            disabled={!dictado.soportado}
+            aria-label={dictado.escuchando ? 'Dejar de escuchar' : 'Hablar con Coli'}
+            title={
+              dictado.soportado ? (dictado.escuchando ? 'Dejar de escuchar' : 'Hablar con Coli') : 'Tu navegador no permite dictado por voz (prueba Chrome o Edge)'
+            }
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              dictado.escuchando ? 'animate-pulse bg-red-500 text-white' : 'bg-pink-50 text-primary hover:bg-pink-100'
+            }`}
+          >
+            {dictado.escuchando ? <Square size={14} /> : <Mic size={16} />}
+          </button>
+          <button
+            type="submit"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white hover:bg-primary-dark"
+            aria-label="Enviar mensaje"
+          >
+            <Send size={16} />
+          </button>
+        </div>
+        {dictado.error && <p className="mt-1.5 text-xs text-red-500">{dictado.error}</p>}
       </form>
     </div>
   )

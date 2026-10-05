@@ -41,7 +41,37 @@ describe('generarRespuestaChat', () => {
     expect(generarRespuestaChat('cuánto cuesta').ruta).toBe('/catalogo')
   })
 
-  it('responde con un mensaje genérico ante un mensaje sin palabras clave', () => {
-    expect(generarRespuestaChat('xyz123').texto.length).toBeGreaterThan(0)
+  it('ignora tildes y mayúsculas', () => {
+    expect(generarRespuestaChat('TENGO HÚMEDAD EN LA PARED').texto).toContain('Aquablock')
+  })
+
+  it('pide más detalle cuando la pregunta es de la tienda pero no trae el caso', () => {
+    const respuesta = generarRespuestaChat('¿Qué pintura uso?')
+    expect(respuesta.fueraDeAlcance).toBeUndefined()
+    expect(respuesta.texto).toContain('fachada')
+  })
+})
+
+describe('generarRespuestaChat — solo temas de COLORLINK', () => {
+  it('rechaza preguntas de fútbol', () => {
+    expect(generarRespuestaChat('¿Quién ganó el partido de fútbol ayer?').fueraDeAlcance).toBe(true)
+  })
+
+  it('no confunde palabras compartidas ("precio", "color") con un tema de la tienda', () => {
+    expect(generarRespuestaChat('¿Cuál es el precio del dólar hoy?').fueraDeAlcance).toBe(true)
+    expect(generarRespuestaChat('¿De qué color es la camiseta de Messi?').fueraDeAlcance).toBe(true)
+  })
+
+  it('atiende la pregunta si habla de pintar, aunque mencione otro tema', () => {
+    expect(generarRespuestaChat('Quiero pintar las líneas de una cancha de fútbol').fueraDeAlcance).toBeUndefined()
+  })
+
+  it('no responde como saludo si el saludo trae una pregunta ajena', () => {
+    expect(generarRespuestaChat('Hola, ¿quién ganó el mundial?').fueraDeAlcance).toBe(true)
+  })
+
+  it('rechaza mensajes sin ninguna relación con la tienda', () => {
+    expect(generarRespuestaChat('¿Qué es la fotosíntesis?').fueraDeAlcance).toBe(true)
+    expect(generarRespuestaChat('xyz123').fueraDeAlcance).toBe(true)
   })
 })
