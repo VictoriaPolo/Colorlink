@@ -33,8 +33,9 @@ src/
     solicitudes/  Todo lo específico del dominio "solicitud": wizard, contexto de estado
     tienda/       Carrito (CartContext), tarjeta de producto, ventana de compra, selector de
                   kits, buscador con sugerencias
-    chat/         Widget del asistente virtual "Coli" (solo clientes), con dictado por voz
-                  y lectura de respuestas en voz alta (Web Speech API, sin librerías)
+    chat/         Widget del asistente virtual "Coli" (solo clientes): dictado por voz,
+                  respuestas leídas en voz alta y llamada de voz manos libres con avatar
+                  animado (Web Speech API, sin librerías ni proveedor externo)
     auth/         Login simulado, sesión, ruta protegida
   domain/
     solicitud/    Reglas de negocio puras: tipos, motor de recomendación,
@@ -131,3 +132,4 @@ sin cambiar el esquema de `pedidos`. El punto de retiro elegido también vive en
 - `features/solicitudes/wizard/WizardPage.test.tsx` — recorrido completo del wizard (integración)
 - `domain/tienda/calculadora.test.ts` — redondeo de galones de la calculadora de pintura
 - `domain/chat/asistenteVirtual.test.ts` — respuestas del asistente según la pregunta y los pedidos, y rechazo de temas ajenos
+- `features/chat/llamada.test.ts` — turnos de la llamada de voz (escuchar, responder, silencio)

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MessageCircle, Send, X, Droplets, Mic, Square, Volume2, VolumeX } from 'lucide-react'
+import { MessageCircle, Send, X, Droplets, Mic, Square, Volume2, VolumeX, Phone } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { generarRespuestaChat, PREGUNTAS_SUGERIDAS, type RespuestaChat } from '@/domain/chat/asistenteVirtual'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 import type { Pedido } from '@/domain/tienda/types'
-import { useDictado, hablar, callar } from './voz'
+import { useDictado, hablar, callar, llamadaSoportada } from './voz'
+import type { TurnoLlamada } from './llamada'
+import LlamadaColi from './LlamadaColi'
 
 interface Mensaje extends RespuestaChat {
   id: number
@@ -22,6 +24,7 @@ export default function ChatWidget() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   // Leer las respuestas en voz alta: se enciende sola al usar el micrófono.
   const [vozActiva, setVozActiva] = useState(false)
+  const [enLlamada, setEnLlamada] = useState(false)
   const idRef = useRef(0)
   const finRef = useRef<HTMLDivElement>(null)
 
@@ -75,6 +78,28 @@ export default function ChatWidget() {
     setAbierto(false)
   }
 
+  const llamar = () => {
+    callar()
+    dictado.detener()
+    setEnLlamada(true)
+  }
+
+  /** Lo hablado en la llamada queda en el chat (con los enlaces de cada respuesta). */
+  const terminarLlamada = (turnos: TurnoLlamada[]) => {
+    setEnLlamada(false)
+    const conversacion = turnos.slice(1) // sin el saludo inicial
+    if (!conversacion.some((t) => t.autor === 'usuario')) return
+    setMensajes((prev) => [
+      ...prev,
+      { id: idRef.current++, autor: 'bot', texto: 'Así quedó nuestra llamada:' },
+      ...conversacion.map((t): Mensaje =>
+        t.autor === 'usuario'
+          ? { id: idRef.current++, autor: 'usuario', texto: t.texto }
+          : { id: idRef.current++, autor: 'bot', ...(t.respuesta ?? { texto: t.texto }) },
+      ),
+    ])
+  }
+
   const irA = (ruta: string) => {
     navigate(ruta)
     cerrar()
@@ -105,10 +130,20 @@ export default function ChatWidget() {
           </span>
           <span className="flex flex-col leading-tight">
             <span className="text-sm font-bold">Coli · Asistente COLORLINK</span>
-            <span className="text-[11px] text-white/80">Solo temas de la tienda · por texto o voz</span>
+            <span className="text-[11px] text-white/80">Solo temas de la tienda</span>
           </span>
         </span>
         <span className="flex items-center gap-1">
+          {llamadaSoportada && (
+            <button
+              onClick={llamar}
+              aria-label="Llamar a Coli"
+              title="Hablar con Coli por voz"
+              className="rounded p-1 hover:bg-white/20"
+            >
+              <Phone size={17} />
+            </button>
+          )}
           <button
             onClick={alternarVoz}
             aria-label={vozActiva ? 'Dejar de leer las respuestas en voz alta' : 'Leer las respuestas en voz alta'}
@@ -199,6 +234,8 @@ export default function ChatWidget() {
         </div>
         {dictado.error && <p className="mt-1.5 text-xs text-red-500">{dictado.error}</p>}
       </form>
+
+      {enLlamada && <LlamadaColi nombre={usuario.nombre} pedidos={pedidos} onCerrar={terminarLlamada} />}
     </div>
   )
 }

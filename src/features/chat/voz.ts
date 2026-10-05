@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 /** El reconocedor no viene en lib.dom (solo sus eventos): tipo mínimo de lo que se usa. */
-interface Reconocedor {
+export interface Reconocedor {
   lang: string
   interimResults: boolean
   continuous: boolean
@@ -18,7 +18,11 @@ const ventana = window as unknown as {
   webkitSpeechRecognition?: new () => Reconocedor
 }
 // Chrome, Edge y Safari lo traen (con prefijo webkit); Firefox no.
-const ReconocedorNativo = ventana.SpeechRecognition ?? ventana.webkitSpeechRecognition
+export const ReconocedorNativo = ventana.SpeechRecognition ?? ventana.webkitSpeechRecognition
+
+/** La llamada necesita reconocer voz, hablar y medir el micrófono. */
+export const llamadaSoportada =
+  Boolean(ReconocedorNativo) && 'speechSynthesis' in window && Boolean(navigator.mediaDevices?.getUserMedia)
 
 const MENSAJES_ERROR: Partial<Record<SpeechRecognitionErrorCode, string>> = {
   'not-allowed': 'Permite el acceso al micrófono para hablar con Coli.',
@@ -77,17 +81,22 @@ export function useDictado(onFrase: (texto: string) => void) {
   return { soportado: Boolean(ReconocedorNativo), escuchando, parcial, error, escuchar, detener }
 }
 
-/** Lee la respuesta en voz alta con una voz en español (colombiana si existe). */
-export function hablar(texto: string) {
-  if (!('speechSynthesis' in window)) return
-  callar()
+/** Frase lista para leer con una voz en español (colombiana si existe). */
+export function crearFrase(texto: string): SpeechSynthesisUtterance {
   const frase = new SpeechSynthesisUtterance(
     texto.replace(/\$\s?([\d.]+)/g, '$1 pesos').replace(/m²/g, 'metros cuadrados'),
   )
   frase.lang = 'es-CO'
   const voces = window.speechSynthesis.getVoices()
   frase.voice = voces.find((v) => v.lang === 'es-CO') ?? voces.find((v) => v.lang.startsWith('es')) ?? null
-  window.speechSynthesis.speak(frase)
+  return frase
+}
+
+/** Lee la respuesta en voz alta. */
+export function hablar(texto: string) {
+  if (!('speechSynthesis' in window)) return
+  callar()
+  window.speechSynthesis.speak(crearFrase(texto))
 }
 
 export function callar() {
