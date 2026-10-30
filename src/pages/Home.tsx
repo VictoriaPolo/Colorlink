@@ -6,7 +6,7 @@ import {
   Palette,
   Calculator,
   Package,
-  Sparkles,
+  Camera,
   FolderKanban,
   MapPin,
   Clock,
@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import Button from '@/shared/ui/Button'
 import Badge from '@/shared/ui/Badge'
+import AbanicoColores from '@/shared/brand/AbanicoColores'
+import FranjaColores from '@/shared/brand/FranjaColores'
 import KitSelector from '@/features/tienda/KitSelector'
 import ProductoCard from '@/features/tienda/ProductoCard'
 import AgregarAlCarritoModal from '@/features/tienda/AgregarAlCarritoModal'
@@ -34,7 +36,7 @@ const ACCESOS = [
     texto: 'Vinilos, fachadas, esmaltes e impermeabilizantes',
     badge: 'Catálogo oficial',
     icon: ShoppingBag,
-    color: 'bg-primary',
+    color: 'bg-primary text-white',
     to: '/catalogo',
   },
   {
@@ -42,7 +44,7 @@ const ACCESOS = [
     texto: 'Simulador de ambientes y carta de color 2026',
     badge: 'Visualizador en vivo',
     icon: Palette,
-    color: 'bg-sky',
+    color: 'bg-navy text-white',
     to: '/simulador',
   },
   {
@@ -50,7 +52,7 @@ const ACCESOS = [
     texto: 'Sistemas multicapa empaquetados con hasta 15% dcto',
     badge: 'Paquetes con descuento',
     icon: Package,
-    color: 'bg-amber-500',
+    color: 'bg-accent text-navy',
     to: '#kits',
   },
   {
@@ -58,10 +60,15 @@ const ACCESOS = [
     texto: 'Calcula galones y cuñetes según tus m² exactos',
     badge: 'Cálculo preciso',
     icon: Calculator,
-    color: 'bg-teal',
+    color: 'bg-sky text-white',
     to: '/calculadora',
   },
 ]
+
+/** Muestras del abanico y de la colección de tendencias: tonos de la carta que acompañan la marca. */
+const CODIGOS_TENDENCIA = ['PNT-303', 'PNT-504', 'PNT-506', 'PNT-401', 'PNT-508', 'PNT-509']
+const CODIGOS_ABANICO = ['PNT-304', 'PNT-303', 'PNT-302', 'PNT-401', 'PNT-506', 'PNT-504', 'PNT-208']
+const colorPorCodigo = (codigo: string) => paletaColores.find((c) => c.codigo === codigo)!
 
 const CIUDADES_RETIRO = new Intl.ListFormat('es', { type: 'disjunction' }).format([
   ...new Set(puntosDeRetiro.map((p) => p.ciudad)),
@@ -86,7 +93,7 @@ export default function Home() {
   const nombre = usuario?.nombre.split(' ')[0] ?? ''
   const productoProyecto = proyecto && productos.find((p) => p.nombre === proyecto.recomendacion.producto)
   const destacados = productos.filter((p) => p.destacado).slice(0, 4)
-  const tendencias = paletaColores.filter((c) => c.categoria === 'Tendencias 2026').slice(0, 6)
+  const tendencias = CODIGOS_TENDENCIA.map(colorPorCodigo)
 
   const irA = (to: string) =>
     to.startsWith('#') ? document.getElementById(to.slice(1))?.scrollIntoView({ behavior: 'smooth' }) : navigate(to)
@@ -94,44 +101,57 @@ export default function Home() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
       {/* HERO */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-navy via-primary-dark to-teal p-6 text-white shadow-soft-lg sm:p-8">
-        <div className="relative z-10 flex max-w-2xl flex-col gap-3">
-          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-extrabold text-navy">
-            <Sparkles size={14} className="text-primary" /> Ecosistema Digital Pintuco • Todo para tu obra y hogar
-          </span>
-          {nombre && <p className="text-sm font-semibold text-pink-100">Hola, {nombre} 👋</p>}
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-            ¿Qué necesitas resolver con Pintuco hoy?
-          </h1>
-          <p className="text-sm font-medium leading-relaxed text-pink-100">
-            Compra pinturas originales, simula colores en vivo, calcula los galones exactos de tu espacio o gestiona
-            tus obras con respaldo técnico certificado.
-          </p>
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              onClick={() => navigate('/catalogo')}
-              className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-extrabold text-primary-dark shadow-soft transition-colors hover:bg-pink-50"
-            >
-              <ShoppingBag size={16} /> Explorar tienda online
-            </button>
-            <button
-              onClick={() => navigate('/simulador')}
-              className="flex items-center gap-2 rounded-xl border border-white/25 bg-white/15 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-white/25"
-            >
-              <Palette size={16} /> Simular color en ambientes
-            </button>
-            <button
-              onClick={() => navigate('/mis-solicitudes')}
-              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-xs font-semibold text-pink-100 transition-colors hover:bg-white/20"
-            >
-              <FolderKanban size={16} /> Mis solicitudes de obra
-            </button>
-          </div>
-        </div>
+      <section className="relative overflow-hidden rounded-xl bg-navy text-white shadow-soft-lg">
+        <FranjaColores className="h-1.5" />
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-10 -bottom-10 h-96 w-96 rounded-full bg-pink-300/20 blur-3xl"
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
         />
+        <div className="relative grid items-center gap-8 px-6 py-10 sm:px-10 lg:grid-cols-[1.1fr_1fr]">
+          <div className="flex flex-col gap-4">
+            <span className="inline-flex w-fit items-center rounded bg-accent px-2.5 py-1 text-[11px] font-extrabold tracking-wider text-navy uppercase">
+              Ecosistema digital Pintuco
+            </span>
+            <div>
+              {nombre && <p className="text-sm font-semibold text-brand-200">Hola, {nombre}</p>}
+              <h1 className="mt-1 text-3xl leading-[1.1] font-black tracking-tight sm:text-4xl lg:text-[2.6rem]">
+                ¿Qué necesitas resolver con Pintuco hoy?
+              </h1>
+            </div>
+            <p className="max-w-xl text-sm leading-relaxed text-brand-100">
+              Sube una foto de tu pared, techo o piso y recibe un diagnóstico; compra pinturas originales, simula
+              colores en vivo y calcula los galones exactos de tu espacio.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button variant="accent" icon={<Camera size={16} />} onClick={() => navigate('/solicitar')}>
+                Diagnosticar con una foto
+              </Button>
+              <button
+                onClick={() => navigate('/catalogo')}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                <ShoppingBag size={16} /> Comprar pinturas
+              </button>
+              <button
+                onClick={() => navigate('/mis-solicitudes')}
+                className="inline-flex items-center gap-2 px-2 py-2.5 text-sm font-semibold text-brand-200 transition-colors hover:text-white"
+              >
+                <FolderKanban size={16} /> Mis solicitudes
+              </button>
+            </div>
+          </div>
+          <div className="hidden lg:block">
+            <AbanicoColores
+              colores={CODIGOS_ABANICO.map(colorPorCodigo)}
+              onElegir={(c) => navigate(`/simulador?color=${c.codigo}`)}
+            />
+          </div>
+        </div>
       </section>
 
       {/* ACCESOS */}
@@ -140,12 +160,12 @@ export default function Home() {
           <button
             key={titulo}
             onClick={() => irA(to)}
-            className="group flex flex-col justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-5 text-left shadow-soft transition-all hover:border-pink-200 hover:shadow-soft-lg"
+            className="group flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft-lg"
           >
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-soft transition-transform group-hover:scale-105 ${color}`}
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg shadow-soft transition-transform group-hover:scale-105 ${color}`}
                 >
                   <Icon size={20} />
                 </span>
@@ -166,11 +186,11 @@ export default function Home() {
 
       {/* PROYECTO ACTIVO */}
       {proyecto && (
-        <section className="rounded-2xl border border-pink-200 bg-white p-6 shadow-soft">
+        <section className="rounded-xl border border-brand-200 bg-white p-6 shadow-soft">
           <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
             <div className="flex max-w-2xl flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex items-center gap-1.5 rounded-full border border-pink-200 bg-pink-50 px-2.5 py-0.5 text-xs font-bold text-primary">
+                <span className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-0.5 text-xs font-bold text-primary">
                   <FolderKanban size={14} /> Proyecto activo • {proyecto.id}
                 </span>
                 <Badge estado={proyecto.estado} />
@@ -206,7 +226,7 @@ export default function Home() {
               {productoProyecto && (
                 <button
                   onClick={() => setComprarMateriales(true)}
-                  className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-center text-xs font-bold text-primary transition-colors hover:bg-pink-100"
+                  className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 text-center text-xs font-bold text-primary transition-colors hover:bg-brand-100"
                 >
                   + Comprar materiales del proyecto
                 </button>
@@ -241,10 +261,10 @@ export default function Home() {
       </section>
 
       {/* TENDENCIAS */}
-      <section className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft">
+      <section className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-soft">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
           <div>
-            <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-bold uppercase text-violet-700">
+            <span className="rounded bg-accent px-2.5 py-1 text-[11px] font-extrabold tracking-wider text-navy uppercase">
               Colección Tendencias 2026
             </span>
             <h2 className="mt-1 text-lg font-extrabold text-navy">Colores diseñados para transformar espacios</h2>
@@ -261,7 +281,7 @@ export default function Home() {
             <button
               key={c.codigo}
               onClick={() => navigate(`/simulador?color=${c.codigo}`)}
-              className="group flex flex-col gap-2 rounded-xl border border-slate-100 bg-surface-muted p-3 text-left transition-colors hover:border-pink-300"
+              className="group flex flex-col gap-2 rounded-xl border border-slate-100 bg-surface-muted p-3 text-left transition-colors hover:border-brand-300"
             >
               <span
                 className="h-14 w-full rounded-lg border border-slate-200 transition-transform group-hover:scale-105"
@@ -277,9 +297,9 @@ export default function Home() {
       </section>
 
       {/* RETIRO EN TIENDA */}
-      <section className="flex flex-col items-center justify-between gap-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft md:flex-row">
+      <section className="flex flex-col items-center justify-between gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-soft md:flex-row">
         <div className="flex items-start gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-primary">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-primary">
             <Store size={24} />
           </span>
           <div>
@@ -296,7 +316,7 @@ export default function Home() {
         </div>
         <button
           onClick={() => navigate('/puntos-de-retiro')}
-          className="w-full shrink-0 rounded-xl bg-primary px-4 py-2.5 text-center text-xs font-bold text-white shadow-soft transition-colors hover:bg-primary-dark md:w-auto"
+          className="w-full shrink-0 rounded-lg bg-primary px-4 py-2.5 text-center text-xs font-bold text-white shadow-soft transition-colors hover:bg-primary-dark md:w-auto"
         >
           Ver tiendas y horarios
         </button>

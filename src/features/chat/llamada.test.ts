@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import type { EstadoLlamada, TurnoLlamada } from './llamada'
 
-/** Navegador simulado: micrófono, reconocedor de voz y síntesis sin audio real. */
+/** Navegador simulado: reconocedor de voz y síntesis sin micrófono ni audio real. */
 const reconocedores: FakeReconocedor[] = []
 const hablado: string[] = []
 
@@ -12,6 +12,8 @@ class FakeReconocedor {
   onresult: ((e: unknown) => void) | null = null
   onerror: ((e: { error: string }) => void) | null = null
   onend: (() => void) | null = null
+  onspeechstart: (() => void) | null = null
+  onspeechend: (() => void) | null = null
   start() {
     reconocedores.push(this)
   }
@@ -36,9 +38,9 @@ class FakeFrase {
 }
 
 /** El usuario dice una frase al reconocedor que está escuchando. */
-function oir(texto: string) {
+function oir(texto: string, { final = true } = {}) {
   const r = reconocedores[reconocedores.length - 1]
-  r.onresult?.({ results: [Object.assign([{ transcript: texto }], { isFinal: true })] })
+  r.onresult?.({ results: [Object.assign([{ transcript: texto }], { isFinal: final })] })
   r.onend?.()
 }
 
@@ -56,18 +58,6 @@ beforeAll(async () => {
       },
     },
   })
-  const pista = { stop: vi.fn(), enabled: true }
-  Object.defineProperty(navigator, 'mediaDevices', {
-    value: { getUserMedia: async () => ({ getTracks: () => [pista], getAudioTracks: () => [pista] }) },
-  })
-  Object.assign(window, {
-    AudioContext: class {
-      resume = async () => {}
-      close = async () => {}
-      createAnalyser = () => ({ fftSize: 0, getByteTimeDomainData: (a: Uint8Array) => a.fill(128) })
-      createMediaStreamSource = () => ({ connect: () => {} })
-    },
-  })
   // voz.ts lee el reconocedor al importarse: se importa después de simularlo.
   ;({ iniciarLlamada } = await import('./llamada'))
 })
@@ -80,29 +70,32 @@ beforeEach(() => {
 
 afterEach(() => vi.useRealTimers())
 
-async function llamar() {
+function llamar() {
   const estados: EstadoLlamada[] = []
   const turnos: TurnoLlamada[] = []
-  const control = await iniciarLlamada({
-    nombre: 'Laura Polo',
-    pedidos: [],
-    signal: new AbortController().signal,
+  const avisos: string[] = []
+  const control = iniciarLlamada({
+    contexto: { nombreUsuario: 'Laura Polo' },
     onEstado: (e) => estados.push(e),
     onTurno: (t) => turnos.push(t),
     onSegundos: () => {},
+    onEscuchando: () => {},
     onNivelMicro: () => {},
     onNivelVoz: () => {},
-    onAviso: () => {},
+    onAviso: (a) => avisos.push(a),
   })
-  return { control, estados, turnos }
+  return { control, estados, turnos, avisos }
 }
+
+/** Termina de hablar (50 ms simulados) y pasa la pausa antes de escuchar. */
+const terminarDeHablar = () => vi.advanceTimersByTimeAsync(320)
 
 describe('iniciarLlamada', () => {
   it('saluda, responde lo que se dice y vuelve a escuchar', async () => {
-    const { control, estados, turnos } = await llamar()
+    const { control, estados, turnos } = llamar()
     expect(hablado[0]).toContain('Hola Laura, soy Coli')
 
-    await vi.advanceTimersByTimeAsync(60)
+    await terminarDeHablar()
     expect(estados.at(-1)).toBe('escuchando')
 
     oir('Necesito pintar la fachada de mi casa')
@@ -111,32 +104,49 @@ describe('iniciarLlamada', () => {
     expect(turnos.at(-1)?.texto).toContain('Koraza')
     expect(hablado.at(-1)).toContain('Koraza')
 
-    await vi.advanceTimersByTimeAsync(60)
+    await terminarDeHablar()
     expect(estados.at(-1)).toBe('escuchando')
     control.colgar()
     expect(estados.at(-1)).toBe('finalizada')
   })
 
+  it('usa lo entendido aunque el navegador no marque la frase como final', async () => {
+    const { control, turnos } = llamar()
+    await terminarDeHablar()
+    oir('¿Cómo compro?', { final: false })
+    await vi.advanceTimersByTimeAsync(710)
+    expect(turnos.at(-1)?.respuesta?.ruta).toBe('/catalogo')
+    control.colgar()
+  })
+
   it('en la llamada también rechaza temas ajenos a la tienda', async () => {
-    const { control, turnos } = await llamar()
-    await vi.advanceTimersByTimeAsync(60)
+    const { control, turnos } = llamar()
+    await terminarDeHablar()
     oir('¿Quién ganó el partido de fútbol?')
     await vi.advanceTimersByTimeAsync(710)
     expect(turnos.at(-1)?.respuesta?.fueraDeAlcance).toBe(true)
     control.colgar()
   })
 
-  it('si hay silencio sigue escuchando, y en silencio no abre el micrófono', async () => {
-    const { control, estados } = await llamar()
-    await vi.advanceTimersByTimeAsync(60)
-    reconocedores.at(-1)?.onend?.() // terminó sin oír nada
-    expect(reconocedores).toHaveLength(2)
+  it('si hay silencio sigue escuchando y, tras varios intentos, avisa', async () => {
+    const { control, avisos } = llamar()
+    await terminarDeHablar()
+    for (let i = 0; i < 3; i++) reconocedores.at(-1)?.onend?.() // terminó sin oír nada
+    expect(reconocedores).toHaveLength(4)
+    expect(avisos.at(-1)).toContain('No logro escucharte')
+    control.colgar()
+  })
 
+  it('en silencio no abre el micrófono ni responde frases a medias', async () => {
+    const { control, estados, turnos } = llamar()
+    await terminarDeHablar()
+    reconocedores.at(-1)?.onresult?.({ results: [Object.assign([{ transcript: 'necesito' }], { isFinal: false })] })
     control.silenciar(true)
-    expect(reconocedores).toHaveLength(2)
+    expect(reconocedores).toHaveLength(1)
     expect(estados.at(-1)).toBe('escuchando')
+    expect(turnos.some((t) => t.autor === 'usuario')).toBe(false)
     control.silenciar(false)
-    expect(reconocedores).toHaveLength(3)
+    expect(reconocedores).toHaveLength(2)
     control.colgar()
   })
 })

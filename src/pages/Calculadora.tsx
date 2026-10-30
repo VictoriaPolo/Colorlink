@@ -46,7 +46,7 @@ export default function Calculadora() {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-50 text-primary">
+        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-primary">
           <Calculator size={24} />
         </span>
         <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Calculadora Técnica de Rendimiento</h1>
@@ -88,7 +88,7 @@ export default function Calculadora() {
                   type="button"
                   onClick={() => setProductoId(p.id)}
                   className={`flex flex-col items-start gap-0.5 rounded-xl border-2 p-3 text-left transition-colors ${
-                    productoId === p.id ? 'border-primary bg-pink-50' : 'border-slate-100 hover:border-pink-200'
+                    productoId === p.id ? 'border-primary bg-brand-50' : 'border-slate-100 hover:border-brand-200'
                   }`}
                 >
                   <span className="text-sm font-bold text-navy">{p.nombre}</span>
@@ -136,7 +136,7 @@ export default function Calculadora() {
         </div>
 
         {producto && galones > 0 && empaque && (
-          <div className="mt-8 rounded-2xl bg-fuchsia-50 p-5">
+          <div className="mt-8 rounded-xl bg-brand-50 p-5">
             <div className="flex items-center gap-4">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
                 <PaintBucket size={22} />
@@ -149,7 +149,7 @@ export default function Calculadora() {
               </div>
             </div>
 
-            <div className="mt-4 space-y-1.5 border-t border-pink-100 pt-4 text-sm">
+            <div className="mt-4 space-y-1.5 border-t border-brand-100 pt-4 text-sm">
               <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">
                 Combinación óptima de empaque
               </p>
@@ -165,7 +165,7 @@ export default function Calculadora() {
                   <span className="font-semibold text-navy">{formatoCOP.format(producto.precio)}</span>
                 </div>
               )}
-              <div className="mt-2 flex justify-between border-t border-pink-100 pt-2 text-base font-extrabold text-primary">
+              <div className="mt-2 flex justify-between border-t border-brand-100 pt-2 text-base font-extrabold text-primary">
                 <span>Inversión estimada</span>
                 <span>{formatoCOP.format(empaque.costoTotal)}</span>
               </div>

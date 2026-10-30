@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react'
 import Stepper from '@/shared/ui/Stepper'
 import Card from '@/shared/ui/Card'
@@ -10,9 +10,11 @@ import Step4Evidencia from './Step4Evidencia'
 import Processing from './Processing'
 import Result from './Result'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
+import { useAuth } from '@/features/auth/AuthContext'
+import { diagnosticoDeFormulario } from '@/features/diagnostico/useDiagnostico'
 import { useToast } from '@/shared/lib/toast'
 import { wizardSchemas, primerosErrores } from '@/domain/solicitud/schemas'
-import type { SolicitudFormData, Solicitud } from '@/domain/solicitud/types'
+import type { DiagnosticoImagen, SolicitudFormData, Solicitud } from '@/domain/solicitud/types'
 
 const STEPS = [
   { label: 'Identificación' },
@@ -33,11 +35,18 @@ type WizardStep = 1 | 2 | 3 | 4 | 'processing' | 5
 
 export default function WizardPage() {
   const { crearSolicitud } = useSolicitudes()
+  const { usuario } = useAuth()
   const { mostrarToast } = useToast()
   const [step, setStep] = useState<WizardStep>(1)
-  const [formData, setFormData] = useState<SolicitudFormData>(emptyFormData)
+  // Quien ya inició sesión no tiene que escribir su nombre otra vez.
+  const [formData, setFormData] = useState<SolicitudFormData>(() => ({
+    ...emptyFormData,
+    identificacion: { ...emptyFormData.identificacion, responsable: usuario?.nombre ?? '' },
+  }))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [solicitudCreada, setSolicitudCreada] = useState<Solicitud | null>(null)
+  // El diagnóstico se calcula mientras corre la animación de "analizando".
+  const diagnosticoPendiente = useRef<Promise<DiagnosticoImagen | undefined>>(Promise.resolve(undefined))
 
   const stepperCurrent = step === 'processing' ? 5 : step
 
@@ -63,6 +72,7 @@ export default function WizardPage() {
     if (typeof step !== 'number' || step === 5) return
     if (!validateStep(step)) return
     if (step === 4) {
+      diagnosticoPendiente.current = diagnosticoDeFormulario(formData).catch(() => undefined)
       setStep('processing')
       return
     }
@@ -75,7 +85,8 @@ export default function WizardPage() {
 
   const handleProcessingDone = async () => {
     try {
-      const nueva = await crearSolicitud(formData)
+      const diagnostico = await diagnosticoPendiente.current
+      const nueva = await crearSolicitud(formData, diagnostico)
       setSolicitudCreada(nueva)
       setStep(5)
       mostrarToast(`Solicitud ${nueva.id} creada correctamente.`)
@@ -93,7 +104,7 @@ export default function WizardPage() {
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       {step !== 5 && (
         <div className="mb-8 text-center">
-          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-primary">
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-primary">
             <Sparkles size={13} /> Solicitud guiada
           </span>
           <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Solicitar solución</h1>
@@ -132,11 +143,12 @@ export default function WizardPage() {
         {step === 4 && (
           <Step4Evidencia
             data={formData.evidencia}
+            tecnica={formData.tecnica}
             errors={errors}
             onChange={(evidencia) => setFormData({ ...formData, evidencia })}
           />
         )}
-        {step === 'processing' && <Processing onDone={handleProcessingDone} />}
+        {step === 'processing' && <Processing onDone={handleProcessingDone} foto={formData.evidencia.imagenes[0]?.url} />}
         {step === 5 && solicitudCreada && <Result solicitud={solicitudCreada} onEditar={handleEditar} />}
 
         {typeof step === 'number' && step !== 5 && (

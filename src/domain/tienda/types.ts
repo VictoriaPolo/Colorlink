@@ -42,6 +42,9 @@ export interface ItemCarrito {
   cantidad: number
 }
 
+/** Etapas por las que pasa un pedido, en orden; "Cancelado" puede ocurrir antes de entregarse. */
+export const ESTADOS_PEDIDO = ['Recibido', 'En preparación', 'Listo para retiro', 'Entregado', 'Cancelado'] as const
+
 export interface Pedido {
   id: string
   clienteNombre: string

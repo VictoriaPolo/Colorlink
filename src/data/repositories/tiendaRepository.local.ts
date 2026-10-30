@@ -3,7 +3,7 @@ import { readStorage, writeStorage } from './storage'
 import type { TiendaRepository } from './tiendaRepository.types'
 
 const STORAGE_KEY = 'colorlink:pedidos'
-const STORAGE_VERSION = 1
+const STORAGE_VERSION = 2
 
 /** Mismos productos y kits que supabase/seed_tienda.sql — se mantienen
  * sincronizados a mano porque son pocos y cambian poco. */
@@ -140,6 +140,77 @@ const KITS: Kit[] = [
   },
 ]
 
+/** Pedidos de ejemplo para que el panel del equipo tenga con qué trabajar desde el primer día. */
+const PEDIDOS_INICIALES: Pedido[] = [
+  {
+    id: 'PED-1006',
+    clienteNombre: 'Hotel Vista Verde',
+    clienteEmail: 'compras@vistaverde.co',
+    items: [{ productoId: 8, nombre: 'Viniltex Multiuso', precioUnitario: 79900, cantidad: 4 }],
+    total: 319600,
+    estado: 'Cancelado',
+    fecha: '2026-09-30',
+  },
+  {
+    id: 'PED-1005',
+    clienteNombre: 'Ferretería El Maestro',
+    clienteEmail: 'pedidos@elmaestro.co',
+    items: [
+      { productoId: 3, nombre: 'Aquablock Fibratado', precioUnitario: 139900, cantidad: 5 },
+      { productoId: 7, nombre: 'Vinilico Concreto', precioUnitario: 89900, cantidad: 2 },
+    ],
+    total: 879300,
+    estado: 'Entregado',
+    fecha: '2026-10-05',
+  },
+  {
+    id: 'PED-1004',
+    clienteNombre: 'Valentina Ruiz',
+    clienteEmail: 'valentina.ruiz@gmail.com',
+    items: [{ productoId: 4, nombre: 'Pintulux 3 en 1 Anticorrosivo + Esmalte', precioUnitario: 124900, cantidad: 1 }],
+    total: 124900,
+    estado: 'Recibido',
+    fecha: '2026-10-29',
+  },
+  {
+    id: 'PED-1003',
+    clienteNombre: 'Constructora Andina S.A.S.',
+    clienteEmail: 'compras@constructoraandina.co',
+    items: [
+      { productoId: 2, nombre: 'Koraza 5 Años Protección Total', precioUnitario: 142900, cantidad: 6 },
+      { productoId: 5, nombre: 'Masilla Elastomérica + Koraza', precioUnitario: 68900, cantidad: 4 },
+    ],
+    total: 1133000,
+    estado: 'En preparación',
+    fecha: '2026-10-27',
+  },
+  {
+    id: 'PED-1002',
+    clienteNombre: 'Carlos Restrepo',
+    clienteEmail: 'carlos@colorlink.com',
+    items: [{ productoId: 1, nombre: 'Viniltex', precioUnitario: 145900, cantidad: 3 }],
+    total: 437700,
+    estado: 'Listo para retiro',
+    fecha: '2026-10-22',
+  },
+  {
+    id: 'PED-1001',
+    clienteNombre: 'Laura Polo',
+    clienteEmail: 'laura@colorlink.com',
+    items: [
+      { productoId: 2, nombre: 'Koraza 5 Años Protección Total', precioUnitario: 142900, cantidad: 2 },
+      { productoId: 5, nombre: 'Masilla Elastomérica + Koraza', precioUnitario: 68900, cantidad: 1 },
+    ],
+    total: 354700,
+    estado: 'Entregado',
+    fecha: '2026-08-20',
+  },
+]
+
+function cargarPedidos(): Pedido[] {
+  return readStorage<Pedido[]>(STORAGE_KEY, STORAGE_VERSION) ?? PEDIDOS_INICIALES
+}
+
 function siguienteIdPedido(pedidos: Pedido[]): string {
   const maximo = pedidos.reduce((max, p) => {
     const n = Number(p.id.replace('PED-', ''))
@@ -158,7 +229,7 @@ export const tiendaRepositoryLocal: TiendaRepository = {
   },
 
   async crearPedido(items, clienteNombre, clienteEmail) {
-    const pedidos = readStorage<Pedido[]>(STORAGE_KEY, STORAGE_VERSION) ?? []
+    const pedidos = cargarPedidos()
     const total = items.reduce((sum, i) => sum + i.precioUnitario * i.cantidad, 0)
     const nuevo: Pedido = {
       id: siguienteIdPedido(pedidos),
@@ -174,7 +245,19 @@ export const tiendaRepositoryLocal: TiendaRepository = {
   },
 
   async listarPedidosPorEmail(clienteEmail) {
-    const pedidos = readStorage<Pedido[]>(STORAGE_KEY, STORAGE_VERSION) ?? []
-    return pedidos.filter((p) => p.clienteEmail === clienteEmail)
+    return cargarPedidos().filter((p) => p.clienteEmail === clienteEmail)
+  },
+
+  async listarPedidos() {
+    return cargarPedidos()
+  },
+
+  async actualizarEstadoPedido(id, estado) {
+    const pedidos = cargarPedidos()
+    const actual = pedidos.find((p) => p.id === id)
+    if (!actual) return undefined
+    const actualizado = { ...actual, estado }
+    writeStorage(STORAGE_KEY, STORAGE_VERSION, pedidos.map((p) => (p.id === id ? actualizado : p)))
+    return actualizado
   },
 }

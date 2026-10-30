@@ -1,3 +1,5 @@
+import type { PatologiaKit } from '@/domain/tienda/types'
+
 export type CanalEntrada =
   | 'Página web'
   | 'WhatsApp'
@@ -91,11 +93,17 @@ export interface TecnicaData {
   colorAcabado: ColorAcabado | ''
 }
 
+/** Dónde está el problema, que el cliente elige antes de describirlo y subir la foto. */
+export type ZonaAfectada = 'Pared' | 'Techo' | 'Piso' | 'Fachada' | 'Metal o reja' | 'Otra'
+
+export const ZONAS_AFECTADAS: ZonaAfectada[] = ['Pared', 'Techo', 'Piso', 'Fachada', 'Metal o reja', 'Otra']
+
 export interface EvidenciaData {
   descripcion: string
   imagenes: EvidenciaImagen[]
   observaciones: string
   consentimiento: boolean
+  zona?: ZonaAfectada
 }
 
 export interface EvidenciaImagen {
@@ -122,6 +130,50 @@ export interface Recomendacion {
   estadoTexto: string
 }
 
+export type PatologiaDetectada =
+  | 'Moho y hongos'
+  | 'Humedad y filtración'
+  | 'Fisuras y grietas'
+  | 'Óxido y corrosión'
+  | 'Pintura descascarada'
+  | 'Salitre'
+  | 'Sin daños evidentes'
+
+export type Severidad = 'Leve' | 'Moderada' | 'Severa'
+
+/** Resultado de analizar la foto y la descripción del cliente (ver domain/diagnostico). */
+export interface DiagnosticoImagen {
+  generadoEn: string
+  zona: ZonaAfectada
+  patologia: PatologiaDetectada
+  /** null cuando no se ven daños. */
+  severidad: Severidad | null
+  /** 0-100: qué tan seguro está el análisis. Sin foto nunca pasa de 55. */
+  confianza: number
+  origen: 'foto' | 'descripción' | 'foto y descripción'
+  fotos: number
+  resumen: string
+  causaProbable: string
+  /** Todo lo que se detectó, de mayor a menor intensidad (0-100). */
+  hallazgos: { patologia: PatologiaDetectada; intensidad: number }[]
+  tratamiento: { kit: PatologiaKit | null; productos: string[]; pasos: string[] }
+  advertencias: string[]
+}
+
+export interface NotaInterna {
+  id: string
+  autor: string
+  texto: string
+  /** Fecha y hora ISO. */
+  fecha: string
+}
+
+/** Lo que el equipo agrega a una solicitud: quién la atiende y sus notas internas. */
+export interface GestionSolicitud {
+  asignadoA?: string
+  notas: NotaInterna[]
+}
+
 export interface Solicitud {
   id: string
   fechaSolicitud: string
@@ -129,4 +181,8 @@ export interface Solicitud {
   data: SolicitudFormData
   recomendacion: Recomendacion
   historialEstados: HistorialEstado[]
+  /** Correo de la cuenta que la creó; sin dueño solo la ven las cuentas de demostración y el equipo. */
+  propietario?: string
+  diagnostico?: DiagnosticoImagen
+  gestion?: GestionSolicitud
 }

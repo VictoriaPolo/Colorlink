@@ -12,7 +12,7 @@ export default function PuntosDeRetiro() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-50 text-primary">
+        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-primary">
           <MapPin size={24} />
         </span>
         <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Puntos de Retiro</h1>
@@ -37,7 +37,7 @@ export default function PuntosDeRetiro() {
                 </p>
               </div>
               {elegido ? (
-                <span className="flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1.5 text-xs font-bold text-primary">
+                <span className="flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-primary">
                   <CheckCircle2 size={15} /> Tu tienda de retiro
                 </span>
               ) : (

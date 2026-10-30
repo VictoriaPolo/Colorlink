@@ -11,7 +11,7 @@ const ICONS: Record<ToastTipo, typeof CheckCircle2> = {
 const STYLES: Record<ToastTipo, string> = {
   success: 'border-green-100 bg-white text-success',
   error: 'border-red-100 bg-white text-red-500',
-  info: 'border-pink-100 bg-white text-primary',
+  info: 'border-brand-100 bg-white text-primary',
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {

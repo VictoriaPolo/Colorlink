@@ -20,7 +20,7 @@ export default function ProcessTimeline({ etapaActual }: { etapaActual: number }
                   isDone
                     ? 'bg-primary text-white'
                     : isCurrent
-                      ? 'bg-teal text-white ring-4 ring-fuchsia-100 animate-pulse-soft'
+                      ? 'bg-accent text-navy ring-4 ring-accent/30 animate-pulse-soft'
                       : 'bg-slate-100 text-slate-400'
                 }`}
               >
@@ -28,7 +28,7 @@ export default function ProcessTimeline({ etapaActual }: { etapaActual: number }
               </div>
               <span
                 className={`text-xs font-medium sm:text-center ${
-                  isCurrent ? 'text-teal font-semibold' : isDone ? 'text-primary' : 'text-slate-400'
+                  isCurrent ? 'font-semibold text-navy' : isDone ? 'text-primary' : 'text-slate-400'
                 }`}
               >
                 {etapa}

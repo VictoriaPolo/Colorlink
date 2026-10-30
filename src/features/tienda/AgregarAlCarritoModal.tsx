@@ -48,7 +48,7 @@ export default function AgregarAlCarritoModal({
       ref={ref}
       onClose={onCerrar}
       onClick={(e) => e.target === ref.current && onCerrar()}
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl bg-white p-0 text-body shadow-soft-lg backdrop:bg-navy/40"
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl bg-white p-0 text-body shadow-soft-lg backdrop:bg-navy/40"
     >
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-5">
         <h2 className="text-base font-extrabold text-navy">{producto.nombre}</h2>
@@ -78,7 +78,7 @@ export default function AgregarAlCarritoModal({
               onClick={() => setPresentacion(p)}
               className={`flex items-center justify-between rounded-lg border p-2.5 text-left text-xs transition-colors ${
                 presentacion === p
-                  ? 'border-primary bg-pink-50 font-bold text-primary ring-1 ring-primary'
+                  ? 'border-primary bg-brand-50 font-bold text-primary ring-1 ring-primary'
                   : 'border-slate-200 hover:bg-slate-50'
               }`}
             >

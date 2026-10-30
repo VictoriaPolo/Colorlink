@@ -3,14 +3,28 @@ import { CheckCircle2, Sparkles, AlertTriangle, Pencil, Download, ListChecks, Ho
 import Card from '@/shared/ui/Card'
 import Button from '@/shared/ui/Button'
 import ProcessTimeline from '@/shared/ui/ProcessTimeline'
+import DiagnosticoCard from '@/features/diagnostico/DiagnosticoCard'
+import FotoAnalizada from '@/features/diagnostico/FotoAnalizada'
+import { clasesDeDiagnostico } from '@/features/diagnostico/imagen'
 import type { Solicitud } from '@/domain/solicitud/types'
 import { etapaDelNegocio } from '@/domain/solicitud/estadoMachine'
 
 export default function Result({ solicitud, onEditar }: { solicitud: Solicitud; onEditar: () => void }) {
   const navigate = useNavigate()
-  const { data, recomendacion, id } = solicitud
+  const { data, recomendacion, id, diagnostico } = solicitud
 
   const descargarResumen = () => {
+    const d = solicitud.diagnostico
+    const diagnosticoTexto = d
+      ? `DIAGNÓSTICO PRELIMINAR (${d.origen})
+Problema: ${d.patologia}${d.severidad ? ` — ${d.severidad}` : ''}
+Zona: ${d.zona}
+Confianza del análisis: ${d.confianza}%
+${d.resumen}
+Causa probable: ${d.causaProbable}
+
+`
+      : ''
     const contenido = `COLORLINK — Resumen de solicitud ${id}
 Fecha: ${solicitud.fechaSolicitud}
 
@@ -27,7 +41,7 @@ Ambiente: ${data.tecnica.ambiente}
 Condición: ${data.tecnica.condicion}
 Color/acabado: ${data.tecnica.colorAcabado}
 
-SOLUCIÓN RECOMENDADA (preliminar)
+${diagnosticoTexto}SOLUCIÓN RECOMENDADA (preliminar)
 Tipo de solución: ${recomendacion.tipoSolucion}
 Producto: ${recomendacion.producto}
 Acabado: ${recomendacion.acabado}
@@ -66,6 +80,24 @@ Tiempo estimado: ${recomendacion.tiempoEstimado}
           Esta es una recomendación preliminar basada en la información proporcionada.
         </p>
       </div>
+
+      {diagnostico && (
+        <div className="flex flex-col gap-4">
+          <DiagnosticoCard diagnostico={diagnostico} />
+          {data.evidencia.imagenes.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {data.evidencia.imagenes.map((img) => (
+                <FotoAnalizada
+                  key={img.id}
+                  url={img.url}
+                  nombre={img.nombre}
+                  clases={clasesDeDiagnostico(diagnostico)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Solución recomendada */}
       <Card className="overflow-hidden">

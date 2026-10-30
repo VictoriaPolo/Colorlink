@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Loader2, Mic, MicOff, PhoneOff } from 'lucide-react'
-import type { Pedido } from '@/domain/tienda/types'
+import type { ContextoChat } from '@/domain/chat/asistenteVirtual'
 import { iniciarLlamada, type ControlLlamada, type EstadoLlamada, type TurnoLlamada } from './llamada'
+import { MENSAJE_MICROFONO_BLOQUEADO, MOTIVO_SIN_VOZ, microfonoBloqueado } from './voz'
 import AvatarColi from './AvatarColi'
 
 const ETIQUETA: Record<EstadoLlamada, string> = {
@@ -16,14 +17,14 @@ const ETIQUETA: Record<EstadoLlamada, string> = {
 const formatoReloj = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
 interface Props {
-  nombre: string
-  pedidos: Pedido[]
+  /** Datos del cliente para que Coli responda con lo real (pedidos, solicitudes, catálogo). */
+  contexto: ContextoChat
   /** Recibe la conversación para dejarla en el chat. */
   onCerrar: (turnos: TurnoLlamada[]) => void
 }
 
 /** Llamada de voz con Coli (como "Llamar a Pintu" en la tienda de referencia). */
-export default function LlamadaColi({ nombre, pedidos, onCerrar }: Props) {
+export default function LlamadaColi({ contexto, onCerrar }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const finRef = useRef<HTMLDivElement>(null)
   const controlRef = useRef<ControlLlamada | null>(null)
@@ -33,37 +34,50 @@ export default function LlamadaColi({ nombre, pedidos, onCerrar }: Props) {
   const [nivelMicro, setNivelMicro] = useState(0)
   const [nivelVoz, setNivelVoz] = useState(0)
   const [turnos, setTurnos] = useState<TurnoLlamada[]>([])
+  const [escuchado, setEscuchado] = useState('')
   const [aviso, setAviso] = useState('')
   const [silenciado, setSilenciado] = useState(false)
 
   useEffect(() => {
     if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
-    // En StrictMode el efecto corre dos veces: abortar cuelga la llamada que
-    // haya quedado del primer montaje.
-    const control = new AbortController()
-    iniciarLlamada({
-      nombre,
-      pedidos,
-      signal: control.signal,
-      onEstado: setEstado,
-      onTurno: (turno) => {
-        turnosRef.current = [...turnosRef.current, turno]
-        setTurnos(turnosRef.current)
-      },
-      onSegundos: setSegundos,
-      onNivelMicro: setNivelMicro,
-      onNivelVoz: setNivelVoz,
-      onAviso: setAviso,
-    })
-      .then((c) => {
-        controlRef.current = c
-      })
-      .catch((e: Error) => {
-        if (control.signal.aborted) return
-        setAviso(e.message)
+    // Arranca en el siguiente ciclo: en StrictMode el efecto se monta, desmonta
+    // y vuelve a montar, y así solo la segunda vez llega a iniciar la llamada.
+    let desmontado = false
+    const arranque = window.setTimeout(async () => {
+      // Si en este navegador no se puede hablar (Opera, Brave, micrófono
+      // bloqueado...), avisarlo antes de que Coli salude.
+      const motivo = MOTIVO_SIN_VOZ ?? ((await microfonoBloqueado()) ? MENSAJE_MICROFONO_BLOQUEADO : null)
+      if (motivo) {
+        if (desmontado) return
+        setAviso(motivo)
         setEstado('error')
-      })
-    return () => control.abort()
+        return
+      }
+      if (desmontado) return
+      try {
+        controlRef.current = iniciarLlamada({
+          contexto,
+          onEstado: setEstado,
+          onTurno: (turno) => {
+            turnosRef.current = [...turnosRef.current, turno]
+            setTurnos(turnosRef.current)
+          },
+          onSegundos: setSegundos,
+          onEscuchando: setEscuchado,
+          onNivelMicro: setNivelMicro,
+          onNivelVoz: setNivelVoz,
+          onAviso: setAviso,
+        })
+      } catch (e) {
+        setAviso((e as Error).message)
+        setEstado('error')
+      }
+    }, 150)
+    return () => {
+      desmontado = true
+      window.clearTimeout(arranque)
+      controlRef.current?.colgar()
+    }
     // La llamada arranca una sola vez por montaje: un cambio de props no la reinicia.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -91,7 +105,7 @@ export default function LlamadaColi({ nombre, pedidos, onCerrar }: Props) {
       aria-label="Llamada con Coli"
       className="m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-3xl bg-white p-0 text-body shadow-soft-lg backdrop:bg-navy/80 backdrop:backdrop-blur-sm"
     >
-      <div className="flex flex-col items-center bg-gradient-to-b from-pink-50 to-white px-6 pt-8 pb-5">
+      <div className="flex flex-col items-center bg-gradient-to-b from-brand-50 to-white px-6 pt-8 pb-5">
         <AvatarColi estado={estado} nivel={estado === 'hablando' ? nivelVoz : nivelMicro} />
         <h2 className="mt-3 text-xl font-extrabold tracking-tight text-navy">Coli</h2>
         <p className="text-xs text-slate-500">Asistente de color y obra · COLORLINK</p>
@@ -102,10 +116,19 @@ export default function LlamadaColi({ nombre, pedidos, onCerrar }: Props) {
               estado === 'error' ? 'text-rose-600' : estado === 'hablando' ? 'text-primary' : 'text-slate-600'
             }`}
           >
-            {silenciado && estado === 'escuchando' ? 'Micrófono en silencio' : ETIQUETA[estado]}
+            {silenciado && estado === 'escuchando'
+              ? 'Micrófono en silencio'
+              : estado === 'error' && turnos.length === 0
+                ? 'No se pudo iniciar la llamada'
+                : ETIQUETA[estado]}
           </span>
           {segundos > 0 && <span className="font-mono text-xs text-slate-400 tabular-nums">{formatoReloj(segundos)}</span>}
         </div>
+        {estado === 'escuchando' && escuchado && (
+          <p className="mt-2 max-w-full truncate text-xs text-slate-500 italic" aria-live="polite">
+            “{escuchado}”
+          </p>
+        )}
       </div>
 
       {aviso && (
@@ -116,14 +139,14 @@ export default function LlamadaColi({ nombre, pedidos, onCerrar }: Props) {
       )}
 
       <div className="max-h-52 min-h-[132px] space-y-2 overflow-y-auto px-5 pb-4">
-        {turnos.length === 0 && estado !== 'conectando' && (
+        {turnos.length === 0 && estado !== 'conectando' && estado !== 'error' && (
           <p className="pt-6 text-center text-xs text-slate-400">Habla con naturalidad. Coli te escucha.</p>
         )}
         {turnos.slice(-4).map((t, i) => (
           <div
             key={`${turnos.length}-${i}`}
             className={`rounded-xl px-3 py-2 text-xs leading-relaxed ${
-              t.autor === 'coli' ? 'border border-pink-100 bg-pink-50/60 text-navy' : 'ml-6 bg-slate-100 text-slate-600'
+              t.autor === 'coli' ? 'border border-brand-100 bg-brand-50/60 text-navy' : 'ml-6 bg-slate-100 text-slate-600'
             }`}
           >
             <span className="font-bold">{t.autor === 'coli' ? 'Coli' : 'Tú'}: </span>

@@ -10,7 +10,7 @@ export default function ProductoCard({ producto }: { producto: Producto }) {
   const [abierto, setAbierto] = useState(false)
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft transition-all hover:border-pink-200 hover:shadow-soft-lg">
+    <div className="group flex flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-soft transition-all hover:border-brand-200 hover:shadow-soft-lg">
       <div className="relative h-44 overflow-hidden bg-slate-100">
         <img
           src={fotoProducto(producto.id, 600, 400)}

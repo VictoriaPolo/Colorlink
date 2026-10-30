@@ -1,61 +1,74 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Solicitud, SolicitudFormData } from '@/domain/solicitud/types'
+import type { DiagnosticoImagen, Solicitud, SolicitudFormData } from '@/domain/solicitud/types'
+import { puedeVerSolicitud } from '@/domain/solicitud/visibilidad'
 import { solicitudesRepository } from '@/data/repositories/solicitudesRepository'
+import { useAuth } from '@/features/auth/AuthContext'
 
 interface SolicitudesContextValue {
+  /** Las que la sesión actual puede ver: todas para el equipo, solo las propias para un cliente. */
   solicitudes: Solicitud[]
   /** La más reciente sin finalizar (o la más reciente, si todas lo están). */
   proyectoActivo: Solicitud | undefined
   cargando: boolean
-  crearSolicitud: (data: SolicitudFormData) => Promise<Solicitud>
+  crearSolicitud: (data: SolicitudFormData, diagnostico?: DiagnosticoImagen) => Promise<Solicitud>
   obtenerSolicitud: (id: string) => Solicitud | undefined
   avanzarEstadoSolicitud: (id: string) => Promise<Solicitud | undefined>
+  /** Equipo: quién atiende la solicitud (sin responsable la deja sin asignar). */
+  asignarSolicitud: (id: string, responsable: string | undefined) => Promise<Solicitud | undefined>
+  /** Equipo: nota interna firmada con el nombre de quien escribe. */
+  agregarNotaSolicitud: (id: string, texto: string) => Promise<Solicitud | undefined>
 }
 
 const SolicitudesContext = createContext<SolicitudesContextValue | null>(null)
 
 export function SolicitudesProvider({ children }: { children: ReactNode }) {
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
+  const { usuario } = useAuth()
+  const [todas, setTodas] = useState<Solicitud[]>([])
   const [cargando, setCargando] = useState(true)
 
+  // Se vuelve a leer al entrar o salir una cuenta: con Supabase Auth, lo que se puede leer depende de la sesión.
+  const idUsuario = usuario?.id
   useEffect(() => {
     let cancelado = false
-    solicitudesRepository.listar().then((datos) => {
-      if (cancelado) return
-      setSolicitudes(datos)
-      setCargando(false)
-    })
+    solicitudesRepository
+      .listar()
+      .then((datos) => {
+        if (!cancelado) setTodas(datos)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelado) setCargando(false)
+      })
     return () => {
       cancelado = true
     }
-  }, [])
+  }, [idUsuario])
 
-  const crearSolicitud = async (data: SolicitudFormData): Promise<Solicitud> => {
-    const nueva = await solicitudesRepository.crear(data)
-    setSolicitudes((prev) => [nueva, ...prev])
-    return nueva
-  }
+  const value = useMemo<SolicitudesContextValue>(() => {
+    const solicitudes = todas.filter((s) => puedeVerSolicitud(s, usuario))
 
-  const obtenerSolicitud = (id: string) => solicitudes.find((s) => s.id === id)
+    /** Deja en pantalla la versión nueva de una solicitud que acaba de cambiar. */
+    const reemplazar = (actualizada: Solicitud | undefined) => {
+      if (actualizada) setTodas((prev) => prev.map((s) => (s.id === actualizada.id ? actualizada : s)))
+      return actualizada
+    }
 
-  const avanzarEstadoSolicitud = async (id: string): Promise<Solicitud | undefined> => {
-    const actualizada = await solicitudesRepository.avanzar(id)
-    if (!actualizada) return undefined
-    setSolicitudes((prev) => prev.map((s) => (s.id === id ? actualizada : s)))
-    return actualizada
-  }
-
-  const value = useMemo(
-    () => ({
+    return {
       solicitudes,
       proyectoActivo: solicitudes.find((s) => s.estado !== 'Finalizada') ?? solicitudes[0],
       cargando,
-      crearSolicitud,
-      obtenerSolicitud,
-      avanzarEstadoSolicitud,
-    }),
-    [solicitudes, cargando],
-  )
+      crearSolicitud: async (data, diagnostico) => {
+        const nueva = await solicitudesRepository.crear(data, { propietario: usuario?.email, diagnostico })
+        setTodas((prev) => [nueva, ...prev])
+        return nueva
+      },
+      obtenerSolicitud: (id) => solicitudes.find((s) => s.id === id),
+      avanzarEstadoSolicitud: async (id) => reemplazar(await solicitudesRepository.avanzar(id)),
+      asignarSolicitud: async (id, responsable) => reemplazar(await solicitudesRepository.asignar(id, responsable)),
+      agregarNotaSolicitud: async (id, texto) =>
+        reemplazar(await solicitudesRepository.agregarNota(id, usuario?.nombre ?? 'Equipo COLORLINK', texto)),
+    }
+  }, [todas, cargando, usuario])
 
   return <SolicitudesContext.Provider value={value}>{children}</SolicitudesContext.Provider>
 }

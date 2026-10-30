@@ -1,6 +1,5 @@
-import { generarRespuestaChat, type RespuestaChat } from '@/domain/chat/asistenteVirtual'
-import type { Pedido } from '@/domain/tienda/types'
-import { ReconocedorNativo, crearFrase, type Reconocedor } from './voz'
+import { generarRespuestaChat, type ContextoChat, type RespuestaChat } from '@/domain/chat/asistenteVirtual'
+import { MENSAJES_ERROR_VOZ, ReconocedorNativo, crearFrase, type Reconocedor } from './voz'
 
 export type EstadoLlamada = 'conectando' | 'escuchando' | 'pensando' | 'hablando' | 'finalizada' | 'error'
 
@@ -17,21 +16,22 @@ export interface ControlLlamada {
 }
 
 interface OpcionesLlamada {
-  nombre: string
-  pedidos: Pedido[]
-  /** Al abortar (ej. se cierra el panel) la llamada se cuelga sola. */
-  signal: AbortSignal
+  contexto: ContextoChat
   onEstado: (estado: EstadoLlamada) => void
   onTurno: (turno: TurnoLlamada) => void
   onSegundos: (segundos: number) => void
-  /** 0 a 1: volumen del micrófono (barras) y de la voz de Coli (boca del avatar). */
+  /** Lo que el reconocedor va entendiendo mientras hablas ('' cuando no hay nada). */
+  onEscuchando: (texto: string) => void
+  /** 0 a 1: actividad del micrófono (barras) y de la voz de Coli (boca del avatar). */
   onNivelMicro: (nivel: number) => void
   onNivelVoz: (nivel: number) => void
+  /** Avisos al usuario ('' para quitar el aviso). */
   onAviso: (mensaje: string) => void
 }
 
 const AVISO_SEGUNDOS = 4 * 60
 const LIMITE_SEGUNDOS = 5 * 60
+const SILENCIOS_PARA_AVISAR = 3
 /** Errores del reconocedor que solo significan "no se oyó nada": se vuelve a escuchar. */
 const ERRORES_PASAJEROS: string[] = ['no-speech', 'aborted']
 
@@ -40,44 +40,27 @@ const ERRORES_PASAJEROS: string[] = ['no-speech', 'aborted']
  * proveedor externo ni claves): escucha una frase, la responde con el mismo
  * motor del chat —que solo atiende temas de la tienda— y la lee en voz alta;
  * luego vuelve a escuchar, hasta colgar o llegar a los 5 minutos.
+ *
+ * El micrófono lo abre solo el reconocedor de voz: abrirlo además con
+ * getUserMedia (para medir el volumen) puede dejar al reconocedor sin audio en
+ * algunos equipos, y la llamada se quedaría "escuchando" sin entender nada.
  */
-export async function iniciarLlamada(op: OpcionesLlamada): Promise<ControlLlamada> {
+export function iniciarLlamada(op: OpcionesLlamada): ControlLlamada {
   const Reconocer = ReconocedorNativo
-  if (!Reconocer) throw new Error('Tu navegador no permite llamadas de voz. Prueba con Chrome o Edge.')
-
-  let microfono: MediaStream
-  try {
-    microfono = await navigator.mediaDevices.getUserMedia({ audio: true })
-  } catch {
-    throw new Error('Permite el acceso al micrófono para llamar a Coli.')
+  if (!Reconocer || !('speechSynthesis' in window)) {
+    throw new Error('Tu navegador no permite llamadas de voz. Prueba con Chrome o Edge.')
   }
-  if (op.signal.aborted) {
-    microfono.getTracks().forEach((pista) => pista.stop())
-    throw new DOMException('Llamada cancelada', 'AbortError')
-  }
-
-  // Volumen del micrófono para las barras del panel.
-  const audio = new AudioContext()
-  void audio.resume()
-  const analizador = audio.createAnalyser()
-  analizador.fftSize = 512
-  audio.createMediaStreamSource(microfono).connect(analizador)
-  const muestras = new Uint8Array(analizador.fftSize)
 
   let activa = true
   let silenciada = false
   let hablando = false
   let reconocedor: Reconocedor | null = null
   let boca: number | undefined
+  let actividad: number | undefined
+  let pausa: number | undefined
   let avisado = false
+  let silencios = 0
   const inicio = Date.now()
-
-  const medirMicrofono = window.setInterval(() => {
-    analizador.getByteTimeDomainData(muestras)
-    let suma = 0
-    for (const m of muestras) suma += ((m - 128) / 128) ** 2
-    op.onNivelMicro(silenciada ? 0 : Math.min(1, Math.sqrt(suma / muestras.length) * 5))
-  }, 80)
 
   const reloj = window.setInterval(() => {
     const segundos = Math.floor((Date.now() - inicio) / 1000)
@@ -89,19 +72,17 @@ export async function iniciarLlamada(op: OpcionesLlamada): Promise<ControlLlamad
     if (segundos >= LIMITE_SEGUNDOS) colgar()
   }, 1000)
 
-  op.signal.addEventListener('abort', () => colgar())
-
   function colgar(estadoFinal: EstadoLlamada = 'finalizada') {
     if (!activa) return
     activa = false
     window.clearInterval(reloj)
-    window.clearInterval(medirMicrofono)
     window.clearInterval(boca)
+    window.clearInterval(actividad)
+    window.clearTimeout(pausa)
     reconocedor?.abort()
     // Solo calla la voz si la que suena es la de esta llamada.
     if (hablando) window.speechSynthesis.cancel()
-    microfono.getTracks().forEach((pista) => pista.stop())
-    void audio.close()
+    op.onEscuchando('')
     op.onNivelMicro(0)
     op.onNivelVoz(0)
     op.onEstado(estadoFinal)
@@ -121,7 +102,8 @@ export async function iniciarLlamada(op: OpcionesLlamada): Promise<ControlLlamad
       window.clearInterval(boca)
       window.clearTimeout(respaldo)
       op.onNivelVoz(0)
-      if (activa) despues()
+      // Pausa corta antes de escuchar, para no captar el final de la propia voz.
+      if (activa) pausa = window.setTimeout(despues, 250)
     }
     frase.onend = terminar
     frase.onerror = terminar
@@ -132,45 +114,72 @@ export async function iniciarLlamada(op: OpcionesLlamada): Promise<ControlLlamad
     if (!activa) return
     op.onEstado('escuchando')
     if (silenciada) return // se retoma al activar el micrófono
-    let entendido = ''
+    let final = ''
+    let parcial = ''
     let fallo = ''
     const nuevo = new Reconocer!()
     nuevo.lang = 'es-CO'
-    nuevo.interimResults = false
+    nuevo.interimResults = true
     nuevo.continuous = false
     nuevo.onresult = (e) => {
-      entendido = Array.from(e.results)
-        .map((r) => r[0].transcript)
-        .join('')
-        .trim()
+      final = ''
+      parcial = ''
+      for (const r of Array.from(e.results)) {
+        if (r.isFinal) final += r[0].transcript
+        else parcial += r[0].transcript
+      }
+      op.onEscuchando(`${final}${parcial}`.trim())
+    }
+    nuevo.onspeechstart = () => {
+      actividad = window.setInterval(() => op.onNivelMicro(0.35 + Math.random() * 0.6), 120)
+    }
+    nuevo.onspeechend = () => {
+      window.clearInterval(actividad)
+      op.onNivelMicro(0)
     }
     nuevo.onerror = (e) => {
-      if (ERRORES_PASAJEROS.includes(e.error)) return
-      fallo =
-        e.error === 'network'
-          ? 'El reconocimiento de voz necesita conexión a internet.'
-          : 'No pudimos usar el micrófono. Intenta llamar de nuevo.'
+      if (!ERRORES_PASAJEROS.includes(e.error)) {
+        fallo = MENSAJES_ERROR_VOZ[e.error] ?? 'No pudimos usar el micrófono. Intenta llamar de nuevo.'
+      }
     }
     nuevo.onend = () => {
       reconocedor = null
+      window.clearInterval(actividad)
+      op.onNivelMicro(0)
+      op.onEscuchando('')
       if (!activa) return
+      if (silenciada) return escuchar() // silenciado a mitad de frase: no se responde
+      // Si el navegador cortó sin marcar la frase como final, igual se usa lo entendido.
+      const dicho = (final || parcial).trim()
       if (fallo) {
         op.onAviso(fallo)
         colgar('error')
-      } else if (entendido) {
-        responder(entendido)
+      } else if (dicho) {
+        silencios = 0
+        op.onAviso('')
+        responder(dicho)
       } else {
-        escuchar() // silencio: sigue escuchando
+        silencios++
+        if (silencios === SILENCIOS_PARA_AVISAR) {
+          op.onAviso('No logro escucharte. Revisa que el micrófono correcto esté activo y con permiso para este sitio, y habla cerca de él.')
+        }
+        escuchar()
       }
     }
     reconocedor = nuevo
-    nuevo.start()
+    try {
+      nuevo.start()
+    } catch {
+      // Otro reconocimiento (ej. el dictado del chat) aún se está cerrando: reintentar.
+      reconocedor = null
+      pausa = window.setTimeout(escuchar, 300)
+    }
   }
 
   function responder(texto: string) {
     op.onTurno({ autor: 'usuario', texto })
     op.onEstado('pensando')
-    const respuesta = generarRespuestaChat(texto, op.pedidos, op.nombre)
+    const respuesta = generarRespuestaChat(texto, op.contexto)
     window.setTimeout(() => {
       if (!activa) return
       op.onTurno({ autor: 'coli', texto: respuesta.texto, respuesta })
@@ -178,7 +187,8 @@ export async function iniciarLlamada(op: OpcionesLlamada): Promise<ControlLlamad
     }, 700)
   }
 
-  const saludo = `Hola ${op.nombre.split(' ')[0]}, soy Coli, el asistente de COLORLINK. ¿En qué te ayudo con tu proyecto?`
+  const nombre = op.contexto.nombreUsuario?.split(' ')[0]
+  const saludo = `Hola${nombre ? ` ${nombre}` : ''}, soy Coli, el asistente de COLORLINK. ¿En qué te ayudo con tu proyecto?`
   op.onTurno({ autor: 'coli', texto: saludo })
   decir(saludo, escuchar)
 
@@ -186,7 +196,6 @@ export async function iniciarLlamada(op: OpcionesLlamada): Promise<ControlLlamad
     colgar: () => colgar(),
     silenciar: (silenciado) => {
       silenciada = silenciado
-      microfono.getAudioTracks().forEach((pista) => (pista.enabled = !silenciado))
       if (silenciado) reconocedor?.abort()
       else if (activa && !hablando && !reconocedor) escuchar()
     },

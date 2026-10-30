@@ -5,11 +5,10 @@ interface CuentaDemo extends Usuario {
 }
 
 /**
- * Directorio de cuentas de demostración. No hay backend de autenticación
- * real: esto simula la validación de credenciales contra una base de
- * usuarios, suficiente para el alcance del proyecto. Incluye cuentas de
- * rol "cliente" (registran solicitudes) y de rol "admin" (reciben las
- * solicitudes de todos los clientes y ejecutan la solución).
+ * Cuentas de demostración, siempre disponibles aunque no haya registro ni
+ * Supabase: dos clientes (ven las solicitudes de ejemplo) y la cuenta del
+ * equipo, que recibe las solicitudes de todos los clientes y ejecuta la
+ * solución. Los clientes nuevos se crean con "Crear cuenta".
  */
 export const cuentasDemo: CuentaDemo[] = [
   {
@@ -18,6 +17,8 @@ export const cuentasDemo: CuentaDemo[] = [
     email: 'laura@colorlink.com',
     password: 'colorlink123',
     rol: 'cliente',
+    proveedor: 'correo',
+    demo: true,
   },
   {
     id: 'usr-2',
@@ -25,6 +26,8 @@ export const cuentasDemo: CuentaDemo[] = [
     email: 'carlos@colorlink.com',
     password: 'colorlink123',
     rol: 'cliente',
+    proveedor: 'correo',
+    demo: true,
   },
   {
     id: 'usr-admin',
@@ -32,6 +35,8 @@ export const cuentasDemo: CuentaDemo[] = [
     email: 'admin@colorlink.com',
     password: 'admin123',
     rol: 'admin',
+    proveedor: 'correo',
+    demo: true,
   },
 ]
 
@@ -40,5 +45,10 @@ export function validarCredenciales(email: string, password: string): Usuario | 
     (c) => c.email.toLowerCase() === email.trim().toLowerCase() && c.password === password,
   )
   if (!cuenta) return null
-  return { id: cuenta.id, nombre: cuenta.nombre, email: cuenta.email, rol: cuenta.rol }
+  const { password: _omitida, ...usuario } = cuenta
+  return usuario
+}
+
+export function esCorreoDemo(email: string): boolean {
+  return cuentasDemo.some((c) => c.email.toLowerCase() === email.trim().toLowerCase())
 }

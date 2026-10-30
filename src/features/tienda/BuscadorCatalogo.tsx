@@ -79,7 +79,7 @@ export default function BuscadorCatalogo({ onNavegar, className = '' }: { onNave
         onKeyDown={(e) => e.key === 'Escape' && inputRef.current?.blur()}
         placeholder="Busca pinturas (Koraza, Viniltex), fachadas, humedad..."
         aria-label="Buscar en el catálogo"
-        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pr-20 pl-10 text-xs font-medium text-navy outline-none transition-colors placeholder:text-slate-400 hover:bg-slate-100 focus:border-primary focus:bg-white focus:ring-2 focus:ring-pink-100"
+        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pr-20 pl-10 text-xs font-medium text-navy outline-none transition-colors placeholder:text-slate-400 hover:bg-slate-100 focus:border-primary focus:bg-white focus:ring-2 focus:ring-brand-100"
       />
       <button
         type="submit"
@@ -92,7 +92,7 @@ export default function BuscadorCatalogo({ onNavegar, className = '' }: { onNave
         // preventDefault en mousedown: el clic en una sugerencia no le quita el foco al input.
         <div
           onMouseDown={(e) => e.preventDefault()}
-          className="absolute top-full right-0 left-0 z-50 mt-2 rounded-2xl border border-slate-100 bg-white p-4 shadow-soft-lg"
+          className="absolute top-full right-0 left-0 z-50 mt-2 rounded-xl border border-slate-100 bg-white p-4 shadow-soft-lg"
         >
           {!q ? (
             <>
@@ -105,7 +105,7 @@ export default function BuscadorCatalogo({ onNavegar, className = '' }: { onNave
                     key={a.titulo}
                     type="button"
                     onClick={() => ir(a.to)}
-                    className="rounded-xl border border-slate-100 bg-surface-muted p-2.5 text-left transition-colors hover:border-pink-200 hover:bg-pink-50"
+                    className="rounded-xl border border-slate-100 bg-surface-muted p-2.5 text-left transition-colors hover:border-brand-200 hover:bg-brand-50"
                   >
                     <span className="block text-xs font-bold text-navy">{a.titulo}</span>
                     <span className="block text-[10px] text-slate-400">{a.texto}</span>
@@ -119,13 +119,13 @@ export default function BuscadorCatalogo({ onNavegar, className = '' }: { onNave
                 <span className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   Sugerencias para “{texto.trim()}”
                 </span>
-                <span className="shrink-0 rounded bg-pink-50 px-2 py-0.5 text-[10px] font-bold text-primary">
+                <span className="shrink-0 rounded bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-primary">
                   Asistente COLORLINK
                 </span>
               </div>
 
               {kitSugerido && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-pink-200 bg-pink-50/60 p-2.5">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50/60 p-2.5">
                   <div>
                     <p className="text-xs font-bold text-navy">{kitSugerido.nombre}</p>
                     <p className="text-[11px] text-body">{kitSugerido.componentes.join(' + ')}</p>

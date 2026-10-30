@@ -3,7 +3,9 @@ import type {
   CanalEntrada,
   ColorAcabado,
   CondicionActual,
+  DiagnosticoImagen,
   EstadoSolicitud,
+  NotaInterna,
   Solicitud,
   SolicitudFormData,
   Superficie,
@@ -12,7 +14,7 @@ import type {
 import { generarRecomendacion } from '@/domain/solicitud/recommendationEngine'
 import { avanzarEstado } from '@/domain/solicitud/estadoMachine'
 import { supabase } from '@/data/supabaseClient'
-import type { SolicitudesRepository } from './solicitudesRepository.types'
+import type { OpcionesCrearSolicitud, SolicitudesRepository } from './solicitudesRepository.types'
 
 /**
  * Repositorio real: lee y escribe en las tablas de supabase/schema.sql.
@@ -154,7 +156,49 @@ async function obtenerPorId(id: string): Promise<Solicitud | undefined> {
     .order('fecha', { referencedTable: 'historial_estados', ascending: true })
     .maybeSingle()
   if (error) throw error
-  return data ? mapRowToSolicitud(data) : undefined
+  if (!data) return undefined
+  const extras = await leerExtras(id)
+  return conExtras(mapRowToSolicitud(data), extras.get(id))
+}
+
+/**
+ * Dueño, diagnóstico, asignación y notas viven en la tabla extras_solicitud
+ * (supabase/schema_cuentas_y_panel.sql) para no tocar el esquema original.
+ */
+interface ExtrasRow {
+  solicitud_id: string
+  usuario_email: string | null
+  diagnostico: DiagnosticoImagen | null
+  asignado_a: string | null
+  notas: NotaInterna[] | null
+}
+
+const FALTA_EXTRAS =
+  'Falta la tabla extras_solicitud en Supabase: ejecuta supabase/schema_cuentas_y_panel.sql en el SQL Editor y vuelve a intentar.'
+
+/** Sin la tabla (todavía no se corrió el SQL) la lectura sigue funcionando, solo que sin dueño ni gestión. */
+async function leerExtras(id?: string): Promise<Map<string, ExtrasRow>> {
+  const consulta = requireClient().from('extras_solicitud').select('*')
+  const { data, error } = await (id ? consulta.eq('solicitud_id', id) : consulta)
+  if (error) return new Map()
+  return new Map((data as ExtrasRow[]).map((fila) => [fila.solicitud_id, fila]))
+}
+
+function conExtras(solicitud: Solicitud, extras: ExtrasRow | undefined): Solicitud {
+  if (!extras) return solicitud
+  return {
+    ...solicitud,
+    propietario: extras.usuario_email ?? undefined,
+    diagnostico: extras.diagnostico ?? undefined,
+    gestion: { asignadoA: extras.asignado_a ?? undefined, notas: extras.notas ?? [] },
+  }
+}
+
+async function guardarExtras(id: string, cambios: Partial<Omit<ExtrasRow, 'solicitud_id'>>): Promise<void> {
+  const { error } = await requireClient()
+    .from('extras_solicitud')
+    .upsert({ solicitud_id: id, ...cambios }, { onConflict: 'solicitud_id' })
+  if (error) throw new Error(FALTA_EXTRAS)
 }
 
 export const solicitudesRepositorySupabase: SolicitudesRepository = {
@@ -165,15 +209,19 @@ export const solicitudesRepositorySupabase: SolicitudesRepository = {
       .order('created_at', { ascending: false })
       .order('fecha', { referencedTable: 'historial_estados', ascending: true })
     if (error) throw error
-    return (data ?? []).map(mapRowToSolicitud)
+    const extras = await leerExtras()
+    return (data ?? []).map((fila) => conExtras(mapRowToSolicitud(fila), extras.get(fila.id)))
   },
 
   async obtener(id) {
     return obtenerPorId(id)
   },
 
-  async crear(data: SolicitudFormData) {
+  async crear(data: SolicitudFormData, opciones: OpcionesCrearSolicitud = {}) {
     const client = requireClient()
+    // Sin la tabla no se puede guardar el dueño: mejor avisar antes de crear nada a medias.
+    const { error: sinExtras } = await client.from('extras_solicitud').select('solicitud_id').limit(1)
+    if (sinExtras) throw new Error(FALTA_EXTRAS)
     const { identificacion, proyecto, tecnica, evidencia } = data
 
     // 1) Cliente: upsert por NIT para no crear una fila nueva por cada
@@ -243,7 +291,7 @@ export const solicitudesRepositorySupabase: SolicitudesRepository = {
 
     // 5) Recomendación (la "IA" sigue siendo el motor de reglas en el
     // navegador, ver recommendationEngine.ts) + advertencias.
-    const recomendacion = generarRecomendacion(data)
+    const recomendacion = generarRecomendacion(data, opciones.diagnostico)
     const { data: recomendacionRow, error: recomendacionError } = await client
       .from('recomendaciones')
       .insert({
@@ -282,6 +330,11 @@ export const solicitudesRepositorySupabase: SolicitudesRepository = {
       .eq('id', solicitudId)
     if (avanceError) throw avanceError
 
+    await guardarExtras(solicitudId, {
+      usuario_email: opciones.propietario ?? null,
+      diagnostico: opciones.diagnostico ?? null,
+    })
+
     const creada = await obtenerPorId(solicitudId)
     if (!creada) throw new Error('La solicitud se creó pero no se pudo volver a leer.')
     return creada
@@ -304,6 +357,20 @@ export const solicitudesRepositorySupabase: SolicitudesRepository = {
       .insert({ solicitud_id: id, estado: avanzada.estado, fecha })
     if (historialError) throw historialError
 
+    return obtenerPorId(id)
+  },
+
+  async asignar(id, responsable) {
+    if (!(await obtenerPorId(id))) return undefined
+    await guardarExtras(id, { asignado_a: responsable ?? null })
+    return obtenerPorId(id)
+  },
+
+  async agregarNota(id, autor, texto) {
+    const actual = await obtenerPorId(id)
+    if (!actual) return undefined
+    const nota: NotaInterna = { id: `${id}-n${Date.now()}`, autor, texto: texto.trim(), fecha: new Date().toISOString() }
+    await guardarExtras(id, { notas: [...(actual.gestion?.notas ?? []), nota] })
     return obtenerPorId(id)
   },
 }

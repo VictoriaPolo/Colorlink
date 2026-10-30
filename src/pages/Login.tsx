@@ -1,5 +1,5 @@
-import LoginForm from '@/features/auth/LoginForm'
+import AuthPage from '@/features/auth/AuthPage'
 
-export default function Login() {
-  return <LoginForm />
+export default function Login({ modo = 'login' }: { modo?: 'login' | 'registro' }) {
+  return <AuthPage modo={modo} />
 }

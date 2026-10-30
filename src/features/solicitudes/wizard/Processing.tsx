@@ -4,12 +4,12 @@ import { Check, Loader2 } from 'lucide-react'
 const PASOS = [
   'Información del proyecto recibida',
   'Características técnicas identificadas',
-  'Analizando requerimientos',
+  'Revisando la foto y la descripción',
   'Calculando solución recomendada',
   'Preparando propuesta',
 ]
 
-export default function Processing({ onDone }: { onDone: () => void }) {
+export default function Processing({ onDone, foto }: { onDone: () => void; foto?: string }) {
   const [activeIndex, setActiveIndex] = useState(0)
 
   useEffect(() => {
@@ -23,10 +23,20 @@ export default function Processing({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="flex flex-col items-center gap-8 py-10 text-center">
-      <div className="relative flex h-20 w-20 items-center justify-center">
-        <span className="absolute h-20 w-20 animate-pulse-soft rounded-full bg-pink-100" />
-        <Loader2 className="relative animate-spin text-primary" size={34} />
-      </div>
+      {foto ? (
+        <div className="relative h-28 w-44 overflow-hidden rounded-xl border border-slate-200 shadow-soft">
+          <img src={foto} alt="" className="h-full w-full object-cover" />
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 h-1/3 animate-escanear bg-linear-to-b from-transparent via-white/70 to-transparent"
+          />
+        </div>
+      ) : (
+        <div className="relative flex h-20 w-20 items-center justify-center">
+          <span className="absolute h-20 w-20 animate-pulse-soft rounded-full bg-brand-100" />
+          <Loader2 className="relative animate-spin text-primary" size={34} />
+        </div>
+      )}
 
       <div>
         <h2 className="text-xl font-bold text-navy sm:text-2xl">

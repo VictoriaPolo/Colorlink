@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PlusCircle, Inbox, Search, LayoutGrid, Table2, FastForward, ChevronRight, Package } from 'lucide-react'
+import { PlusCircle, Inbox, Search, LayoutGrid, Table2, ChevronRight, Package } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Button from '@/shared/ui/Button'
 import Badge from '@/shared/ui/Badge'
+import { ESTILO_ESTADO } from '@/shared/ui/estadoEstilos'
 import { SkeletonCardList } from '@/shared/ui/Skeleton'
 import SolicitudesTable from '@/features/solicitudes/SolicitudesTable'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
 import { useAuth } from '@/features/auth/AuthContext'
-import { useToast } from '@/shared/lib/toast'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
-import { estaFinalizada, etiquetaSiguienteAccion } from '@/domain/solicitud/estadoMachine'
 import type { EstadoSolicitud, Superficie } from '@/domain/solicitud/types'
 import type { Pedido } from '@/domain/tienda/types'
 
@@ -26,21 +25,10 @@ const ESTADOS: EstadoSolicitud[] = [
 ]
 const SUPERFICIES: Superficie[] = ['Interior', 'Exterior', 'Fachada', 'Metal', 'Madera', 'Concreto', 'Otro']
 
-/** Mismos colores que shared/ui/Badge.tsx, como punto de color en vez de fondo. */
-const PUNTO_ESTADO: Record<EstadoSolicitud, string> = {
-  Recibida: 'bg-slate-400',
-  'En análisis': 'bg-violet-500',
-  'Solución propuesta': 'bg-fuchsia-500',
-  'En abastecimiento': 'bg-amber-500',
-  'Servicio programado': 'bg-pink-500',
-  Finalizada: 'bg-green-500',
-}
-
 export default function MisSolicitudes() {
   const navigate = useNavigate()
   const { usuario } = useAuth()
-  const { solicitudes, cargando, avanzarEstadoSolicitud } = useSolicitudes()
-  const { mostrarToast } = useToast()
+  const { solicitudes, cargando } = useSolicitudes()
   const [seccion, setSeccion] = useState<'solicitudes' | 'pedidos'>('solicitudes')
   const [busqueda, setBusqueda] = useState('')
   const [superficie, setSuperficie] = useState<Superficie | 'Todas'>('Todas')
@@ -56,11 +44,6 @@ export default function MisSolicitudes() {
       setCargandoPedidos(false)
     })
   }, [usuario])
-
-  const simularAvance = async (id: string) => {
-    const actualizada = await avanzarEstadoSolicitud(id)
-    if (actualizada) mostrarToast(`${id} avanzó a "${actualizada.estado}".`)
-  }
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
@@ -158,7 +141,7 @@ export default function MisSolicitudes() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar por ID, ciudad, tipo de obra o cliente..."
-                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-3.5 pl-10 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-pink-100"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-3.5 pl-10 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-brand-100"
               />
             </div>
             <div className="flex shrink-0 gap-1 rounded-xl border border-slate-200 bg-white p-1">
@@ -220,7 +203,7 @@ export default function MisSolicitudes() {
                   estado === e ? 'bg-primary text-white' : 'bg-slate-100 text-body hover:bg-slate-200'
                 }`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${estado === e ? 'bg-white' : PUNTO_ESTADO[e]}`} />
+                <span className={`h-1.5 w-1.5 rounded-full ${estado === e ? 'bg-white' : ESTILO_ESTADO[e].punto}`} />
                 {e}
               </button>
             ))}
@@ -258,19 +241,10 @@ export default function MisSolicitudes() {
               <p className="text-sm text-body">
                 {s.data.proyecto.tipoObra || '—'} · {s.data.proyecto.ciudad || '—'}
               </p>
-              <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
-                {!estaFinalizada(s.estado) && (
-                  <button
-                    onClick={() => simularAvance(s.id)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-teal hover:underline"
-                    title={etiquetaSiguienteAccion(s.estado).larga}
-                  >
-                    <FastForward size={13} /> {etiquetaSiguienteAccion(s.estado).corta}
-                  </button>
-                )}
+              <div className="mt-auto flex items-center justify-end gap-3 border-t border-slate-100 pt-3">
                 <button
                   onClick={() => navigate(`/mis-solicitudes/${s.id}`)}
-                  className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
                 >
                   Ver detalle <ChevronRight size={15} />
                 </button>
@@ -279,7 +253,7 @@ export default function MisSolicitudes() {
           ))}
         </div>
       ) : (
-        <SolicitudesTable solicitudes={filtradas} detalleBasePath="/mis-solicitudes" onAvanzar={simularAvance} />
+        <SolicitudesTable solicitudes={filtradas} detalleBasePath="/mis-solicitudes" />
       )}
         </>
       )}

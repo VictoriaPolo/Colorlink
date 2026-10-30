@@ -53,6 +53,7 @@ export const evidenciaSchema = z.object({
   descripcion: requerido('Cuéntanos brevemente qué necesitas.'),
   observaciones: z.string(),
   imagenes: z.array(z.object({ id: z.string(), nombre: z.string(), url: z.string() })),
+  zona: z.enum(['Pared', 'Techo', 'Piso', 'Fachada', 'Metal o reja', 'Otra']).optional(),
   consentimiento: z.literal(true, { message: 'Debes aceptar el tratamiento de datos.' }),
 })
 

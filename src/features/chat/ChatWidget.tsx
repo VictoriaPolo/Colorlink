@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MessageCircle, Send, X, Droplets, Mic, Square, Volume2, VolumeX, Phone } from 'lucide-react'
+import { MessageCircle, Send, X, Droplets, Mic, MicOff, Square, Volume2, VolumeX, Phone } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
-import { generarRespuestaChat, PREGUNTAS_SUGERIDAS, type RespuestaChat } from '@/domain/chat/asistenteVirtual'
+import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
+import {
+  generarRespuestaChat,
+  PREGUNTAS_SUGERIDAS,
+  type ContextoChat,
+  type RespuestaChat,
+} from '@/domain/chat/asistenteVirtual'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
-import type { Pedido } from '@/domain/tienda/types'
-import { useDictado, hablar, callar, llamadaSoportada } from './voz'
+import { tiendaRepositoryLocal } from '@/data/repositories/tiendaRepository.local'
+import type { Pedido, Producto } from '@/domain/tienda/types'
+import { useDictado, hablar, callar } from './voz'
 import type { TurnoLlamada } from './llamada'
 import LlamadaColi from './LlamadaColi'
 
@@ -16,17 +23,22 @@ interface Mensaje extends RespuestaChat {
 
 export default function ChatWidget() {
   const { usuario } = useAuth()
+  const { solicitudes } = useSolicitudes()
   const navigate = useNavigate()
   const [abierto, setAbierto] = useState(false)
   const [input, setInput] = useState('')
   const [escribiendo, setEscribiendo] = useState(false)
   const [pedidos, setPedidos] = useState<Pedido[]>([])
+  const [productos, setProductos] = useState<Producto[]>([])
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   // Leer las respuestas en voz alta: se enciende sola al usar el micrófono.
   const [vozActiva, setVozActiva] = useState(false)
   const [enLlamada, setEnLlamada] = useState(false)
   const idRef = useRef(0)
   const finRef = useRef<HTMLDivElement>(null)
+
+  /** Lo que Coli sabe del cliente para responder con datos reales. */
+  const contexto: ContextoChat = { nombreUsuario: usuario?.nombre, pedidos, solicitudes, productos }
 
   const enviarTexto = (texto: string) => {
     if (!texto.trim()) return
@@ -35,7 +47,7 @@ export default function ChatWidget() {
     setEscribiendo(true)
 
     setTimeout(() => {
-      const respuesta = generarRespuestaChat(texto, pedidos, usuario!.nombre)
+      const respuesta = generarRespuestaChat(texto, contexto)
       setMensajes((prev) => [...prev, { id: idRef.current++, autor: 'bot', ...respuesta }])
       setEscribiendo(false)
       if (vozActiva) hablar(respuesta.texto)
@@ -46,8 +58,14 @@ export default function ChatWidget() {
 
   useEffect(() => {
     if (!usuario || usuario.rol !== 'cliente') return
-    tiendaRepository.listarPedidosPorEmail(usuario.email).then(setPedidos)
-    setMensajes([{ id: idRef.current++, autor: 'bot', ...generarRespuestaChat('hola', [], usuario.nombre) }])
+    tiendaRepository.listarPedidosPorEmail(usuario.email).then(setPedidos).catch(() => {})
+    // Si la base de datos no responde, Coli usa la copia local del catálogo
+    // (los mismos productos del seed) para no quedarse sin saber de productos.
+    tiendaRepository
+      .listarProductos()
+      .catch(() => tiendaRepositoryLocal.listarProductos())
+      .then(setProductos)
+    setMensajes([{ id: idRef.current++, autor: 'bot', ...generarRespuestaChat('hola', { nombreUsuario: usuario.nombre }) }])
   }, [usuario?.email])
 
   useEffect(() => {
@@ -63,8 +81,8 @@ export default function ChatWidget() {
 
   const handleMicrofono = () => {
     if (dictado.escuchando) return dictado.detener()
-    setVozActiva(true)
-    dictado.escuchar()
+    if (!dictado.motivo) setVozActiva(true)
+    dictado.escuchar() // si la voz no está disponible aquí, solo muestra el porqué
   }
 
   const alternarVoz = () => {
@@ -112,7 +130,7 @@ export default function ChatWidget() {
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="fixed right-5 bottom-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-teal text-white shadow-soft-lg transition-transform hover:scale-105"
+        className="fixed right-5 bottom-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary ring-4 ring-accent/40 text-white shadow-soft-lg transition-transform hover:scale-105"
         aria-label="Abrir a Coli, el asistente"
         title="Coli · Asistente COLORLINK"
       >
@@ -123,7 +141,7 @@ export default function ChatWidget() {
 
   return (
     <div className="fixed right-5 bottom-5 z-50 flex h-[30rem] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft-lg">
-      <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-primary to-teal px-4 py-3 text-white">
+      <div className="flex items-center justify-between gap-2 bg-navy px-4 py-3 text-white">
         <span className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20">
             <Droplets size={16} />
@@ -134,16 +152,14 @@ export default function ChatWidget() {
           </span>
         </span>
         <span className="flex items-center gap-1">
-          {llamadaSoportada && (
-            <button
-              onClick={llamar}
-              aria-label="Llamar a Coli"
-              title="Hablar con Coli por voz"
-              className="rounded p-1 hover:bg-white/20"
-            >
-              <Phone size={17} />
-            </button>
-          )}
+          <button
+            onClick={llamar}
+            aria-label="Llamar a Coli"
+            title="Hablar con Coli por voz"
+            className="rounded p-1 hover:bg-white/20"
+          >
+            <Phone size={17} />
+          </button>
           <button
             onClick={alternarVoz}
             aria-label={vozActiva ? 'Dejar de leer las respuestas en voz alta' : 'Leer las respuestas en voz alta'}
@@ -170,7 +186,7 @@ export default function ChatWidget() {
               {m.ruta && m.etiquetaRuta && (
                 <button
                   onClick={() => irA(m.ruta!)}
-                  className="mt-2 block w-full rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-pink-50"
+                  className="mt-2 block w-full rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-brand-50"
                 >
                   {m.etiquetaRuta} →
                 </button>
@@ -185,7 +201,7 @@ export default function ChatWidget() {
               <button
                 key={pregunta}
                 onClick={() => enviarTexto(pregunta)}
-                className="rounded-full border border-pink-200 bg-pink-50 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-pink-100"
+                className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-brand-100"
               >
                 {pregunta}
               </button>
@@ -208,21 +224,22 @@ export default function ChatWidget() {
             onChange={(e) => setInput(e.target.value)}
             readOnly={dictado.escuchando}
             placeholder={dictado.escuchando ? 'Te escucho…' : 'Escríbele o háblale a Coli...'}
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-pink-100"
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-brand-100"
           />
           <button
             type="button"
             onClick={handleMicrofono}
-            disabled={!dictado.soportado}
-            aria-label={dictado.escuchando ? 'Dejar de escuchar' : 'Hablar con Coli'}
-            title={
-              dictado.soportado ? (dictado.escuchando ? 'Dejar de escuchar' : 'Hablar con Coli') : 'Tu navegador no permite dictado por voz (prueba Chrome o Edge)'
-            }
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              dictado.escuchando ? 'animate-pulse bg-red-500 text-white' : 'bg-pink-50 text-primary hover:bg-pink-100'
+            aria-label={dictado.escuchando ? 'Dejar de escuchar' : dictado.motivo ? 'Voz no disponible' : 'Hablar con Coli'}
+            title={dictado.motivo ?? (dictado.escuchando ? 'Dejar de escuchar' : 'Hablar con Coli')}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
+              dictado.escuchando
+                ? 'animate-pulse bg-red-500 text-white'
+                : dictado.motivo
+                  ? 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                  : 'bg-brand-50 text-primary hover:bg-brand-100'
             }`}
           >
-            {dictado.escuchando ? <Square size={14} /> : <Mic size={16} />}
+            {dictado.escuchando ? <Square size={14} /> : dictado.motivo ? <MicOff size={16} /> : <Mic size={16} />}
           </button>
           <button
             type="submit"
@@ -235,7 +252,7 @@ export default function ChatWidget() {
         {dictado.error && <p className="mt-1.5 text-xs text-red-500">{dictado.error}</p>}
       </form>
 
-      {enLlamada && <LlamadaColi nombre={usuario.nombre} pedidos={pedidos} onCerrar={terminarLlamada} />}
+      {enLlamada && <LlamadaColi contexto={contexto} onCerrar={terminarLlamada} />}
     </div>
   )
 }

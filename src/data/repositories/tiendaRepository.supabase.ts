@@ -134,4 +134,16 @@ export const tiendaRepositorySupabase: TiendaRepository = {
     if (error) throw error
     return (data ?? []).map(mapPedido)
   },
+
+  async listarPedidos() {
+    const { data, error } = await requireClient().from('pedidos').select('*').order('created_at', { ascending: false })
+    if (error) throw error
+    return (data ?? []).map(mapPedido)
+  },
+
+  async actualizarEstadoPedido(id, estado) {
+    const { data, error } = await requireClient().from('pedidos').update({ estado }).eq('id', id).select('*').maybeSingle()
+    if (error) throw error
+    return data ? mapPedido(data) : undefined
+  },
 }

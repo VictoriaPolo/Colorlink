@@ -3,17 +3,20 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import WizardPage from './WizardPage'
+import { AuthProvider } from '@/features/auth/AuthContext'
 import { SolicitudesProvider } from '@/features/solicitudes/context/SolicitudesContext'
 import { ToastProvider } from '@/shared/ui/Toaster'
 
 function renderWizard() {
   return render(
     <MemoryRouter>
-      <SolicitudesProvider>
-        <ToastProvider>
-          <WizardPage />
-        </ToastProvider>
-      </SolicitudesProvider>
+      <AuthProvider>
+        <SolicitudesProvider>
+          <ToastProvider>
+            <WizardPage />
+          </ToastProvider>
+        </SolicitudesProvider>
+      </AuthProvider>
     </MemoryRouter>,
   )
 }
@@ -72,7 +75,9 @@ describe('WizardPage — recorrido completo', () => {
     expect(
       await screen.findByText('¡Hemos analizado tu necesidad!', undefined, { timeout: 6000 }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Sistema de recubrimiento para exterior')).toBeInTheDocument()
+    // El diagnóstico (aquí solo con lo que describe el cliente) manda sobre la recomendación.
+    expect(screen.getByRole('heading', { name: 'Fisuras y grietas' })).toBeInTheDocument()
+    expect(screen.getByText('Tratamiento de fisuras y grietas y sistema de acabado')).toBeInTheDocument()
     expect(
       screen.getByText('Se recomienda validar previamente el estado de la superficie antes de aplicar el recubrimiento.'),
     ).toBeInTheDocument()

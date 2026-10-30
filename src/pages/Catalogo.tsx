@@ -36,7 +36,7 @@ export default function Catalogo() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-primary">
+        <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-primary">
           <ShoppingBag size={13} /> Catálogo Oficial
         </span>
         <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Pinturas Pintuco distribuidas por COLORLINK</h1>
@@ -47,7 +47,7 @@ export default function Catalogo() {
         <div className="relative">
           <Search className="absolute top-1/2 left-3.5 -translate-y-1/2 text-slate-400" size={16} />
           <input
-            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm text-navy outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-pink-100"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm text-navy outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-brand-100"
             placeholder="Buscar por nombre o uso, ej. Koraza, fachadas, metal..."
             value={busqueda}
             onChange={(e) => setSearchParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
@@ -60,7 +60,7 @@ export default function Catalogo() {
               key={c}
               onClick={() => setCategoria(c)}
               className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                categoria === c ? 'bg-primary text-white' : 'bg-white text-body hover:bg-pink-50'
+                categoria === c ? 'bg-primary text-white' : 'bg-white text-body hover:bg-brand-50'
               }`}
             >
               {c}

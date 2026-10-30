@@ -3,18 +3,32 @@
 @theme {
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
 
-  --color-navy: #581c87;
-  --color-primary: #ec4899;
-  --color-primary-dark: #db2777;
-  --color-sky: #a78bfa;
-  --color-teal: #c026d3;
+  /* Identidad Pintuco: azul corporativo, azul profundo y amarillo de acento. */
+  --color-primary: #004f9f;
+  --color-primary-dark: #003b77;
+  --color-navy: #0a2540;
+  --color-sky: #2b7bd3;
+  --color-accent: #ffd100;
+  --color-accent-dark: #e3b900;
   --color-surface: #ffffff;
-  --color-surface-muted: #fdf4ff;
-  --color-body: #7a5c85;
-  --color-success: #16a34a;
+  --color-surface-muted: #f3f6fa;
+  --color-body: #4a5b73;
+  --color-success: #15803d;
 
-  --shadow-soft: 0 1px 2px rgba(88, 28, 135, 0.05), 0 8px 24px -12px rgba(219, 39, 119, 0.18);
-  --shadow-soft-lg: 0 4px 6px rgba(88, 28, 135, 0.04), 0 20px 40px -16px rgba(219, 39, 119, 0.22);
+  /* Escala de la marca (50 muy claro → 900 muy oscuro), centrada en #004f9f. */
+  --color-brand-50: #eef5fc;
+  --color-brand-100: #dbe9f8;
+  --color-brand-200: #bad5f1;
+  --color-brand-300: #8bb9e7;
+  --color-brand-400: #5496d9;
+  --color-brand-500: #2477c9;
+  --color-brand-600: #0c62b4;
+  --color-brand-700: #004f9f;
+  --color-brand-800: #003b77;
+  --color-brand-900: #002a55;
+
+  --shadow-soft: 0 1px 2px rgba(10, 37, 64, 0.05), 0 6px 16px -8px rgba(10, 37, 64, 0.16);
+  --shadow-soft-lg: 0 2px 4px rgba(10, 37, 64, 0.05), 0 18px 36px -18px rgba(10, 37, 64, 0.3);
 
   --animate-fade-in: fade-in 0.4s ease-out both;
   --animate-slide-up: slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -22,6 +36,35 @@
   --animate-coli-respira: coli-respira 3.6s ease-in-out infinite;
   --animate-coli-halo: coli-halo 2.6s ease-out infinite;
   --animate-coli-barra: coli-barra 0.6s ease-in-out infinite;
+  --animate-escanear: escanear 1.5s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
 
   /* Avatar de Coli en la llamada de voz */
   @keyframes coli-respira {
@@ -53,38 +96,19 @@
       transform: scaleY(1);
     }
   }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
+  @keyframes escanear {
+    0% {
+      top: -20%;
     }
-    to {
-      opacity: 1;
-    }
-  }
-  @keyframes slide-up {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  @keyframes pulse-soft {
-    0%,
     100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.45;
+      top: 100%;
     }
   }
 }
 
 html {
   color-scheme: light;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -100,14 +124,25 @@ body {
 }
 
 ::selection {
-  background: var(--color-sky);
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-navy);
 }
 
-.shadow-soft {
-  box-shadow: var(--shadow-soft);
+/* Foco visible para quien navega con teclado. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
-.shadow-soft-lg {
-  box-shadow: var(--shadow-soft-lg);
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

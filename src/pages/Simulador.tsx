@@ -85,7 +85,7 @@ export default function Simulador() {
   const [colorActivo, setColorActivo] = useState(
     () =>
       paletaColores.find((c) => c.codigo === searchParams.get('color')) ??
-      paletaColores.find((c) => c.codigo === 'PNT-501') ??
+      paletaColores.find((c) => c.codigo === 'PNT-303') ??
       paletaColores[0],
   )
   const [categoria, setCategoria] = useState<CategoriaColor>(colorActivo.categoria)
@@ -117,7 +117,7 @@ export default function Simulador() {
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-50 text-primary">
+        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-primary">
           <Palette size={24} />
         </span>
         <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Encuentra y Simula tu Color Ideal</h1>
@@ -191,7 +191,7 @@ export default function Simulador() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-fuchsia-50 p-4">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-brand-50 p-4">
           <div className="flex items-center gap-3">
             <span
               className="h-14 w-14 shrink-0 rounded-xl border border-white shadow-soft"
@@ -225,7 +225,7 @@ export default function Simulador() {
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar color por nombre o código (ej. Nieve, 101)..."
-            className="w-full rounded-xl border border-slate-200 py-2.5 pr-3.5 pl-10 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-pink-100"
+            className="w-full rounded-xl border border-slate-200 py-2.5 pr-3.5 pl-10 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-brand-100"
           />
         </div>
 
@@ -249,7 +249,7 @@ export default function Simulador() {
               key={color.codigo}
               onClick={() => setColorActivo(color)}
               className={`overflow-hidden rounded-xl border-2 text-left transition-colors ${
-                colorActivo.codigo === color.codigo ? 'border-primary' : 'border-slate-100 hover:border-pink-200'
+                colorActivo.codigo === color.codigo ? 'border-primary' : 'border-slate-100 hover:border-brand-200'
               }`}
             >
               <span className="block h-14 w-full" style={{ backgroundColor: color.hex }} />

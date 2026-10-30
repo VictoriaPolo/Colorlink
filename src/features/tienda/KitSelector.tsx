@@ -53,7 +53,7 @@ export default function KitSelector() {
     <section
       id="kits"
       ref={seccionRef}
-      className="flex scroll-mt-40 flex-col gap-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-soft"
+      className="flex scroll-mt-40 flex-col gap-6 rounded-xl border border-slate-100 bg-white p-6 shadow-soft"
     >
       <div>
         <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
@@ -79,7 +79,7 @@ export default function KitSelector() {
       {cargando ? (
         <SkeletonCardList count={1} />
       ) : kitActivo ? (
-        <div className="flex flex-col items-center gap-6 rounded-2xl border border-slate-100 bg-surface-muted p-5 md:flex-row">
+        <div className="flex flex-col items-center gap-6 rounded-xl border border-slate-100 bg-surface-muted p-5 md:flex-row">
           <div className="h-40 w-full shrink-0 overflow-hidden rounded-xl border border-slate-100 md:w-56">
             <img
               src={`https://images.unsplash.com/${foto}?auto=format&fit=crop&w=600&h=430&q=80`}
@@ -98,7 +98,7 @@ export default function KitSelector() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-bold text-slate-400">Productos del kit:</span>
               {kitActivo.componentes.map((c) => (
-                <span key={c} className="rounded border border-pink-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-primary">
+                <span key={c} className="rounded border border-brand-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-primary">
                   ✓ {c}
                 </span>
               ))}

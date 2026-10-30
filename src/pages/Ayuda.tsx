@@ -24,7 +24,7 @@ export default function Ayuda() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="mb-10 text-center">
-        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-50 text-primary">
+        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-primary">
           <HelpCircle size={24} />
         </span>
         <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">¿En qué podemos ayudarte?</h1>
@@ -44,7 +44,7 @@ export default function Ayuda() {
       </div>
 
       <Card className="mt-8 flex flex-col items-center gap-3 p-8 text-center">
-        <MessageCircle className="text-teal" size={26} />
+        <MessageCircle className="text-primary" size={26} />
         <h3 className="text-base font-bold text-navy">¿Aún tienes dudas?</h3>
         <p className="text-sm text-body">
           Escríbenos por WhatsApp o inicia una solicitud y nuestro equipo te acompañará en el proceso.

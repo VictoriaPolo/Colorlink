@@ -1,12 +1,14 @@
-import type { Recomendacion, SolicitudFormData } from '@/domain/solicitud/types'
+import type { DiagnosticoImagen, Recomendacion, SolicitudFormData } from '@/domain/solicitud/types'
 
 /**
  * Motor de recomendación basado en reglas (placeholder de IA).
  * Aislado deliberadamente: el objetivo es que en el futuro esta función
  * pueda reemplazarse por una llamada a un modelo/API real sin tocar
  * el resto de la aplicación — misma firma, mismo tipo de salida.
+ * Si hay un diagnóstico por imagen con daño, manda sobre las reglas de
+ * superficie: primero se trata el problema y luego se pinta.
  */
-export function generarRecomendacion(data: SolicitudFormData): Recomendacion {
+export function generarRecomendacion(data: SolicitudFormData, diagnostico?: DiagnosticoImagen): Recomendacion {
   const { proyecto, tecnica } = data
   const area = Number(proyecto.areaAprox) || 0
   const advertencias: string[] = []
@@ -35,6 +37,18 @@ export function generarRecomendacion(data: SolicitudFormData): Recomendacion {
   } else if (tecnica.ambiente === 'Interior seco' || tecnica.superficie === 'Interior') {
     tipoSolucion = 'Sistema de recubrimiento para interior'
     producto = 'Viniltex'
+  }
+
+  const conDano = diagnostico && diagnostico.patologia !== 'Sin daños evidentes' && diagnostico.confianza >= 40
+  if (conDano) {
+    tipoSolucion = `Tratamiento de ${diagnostico.patologia.toLowerCase()} y sistema de acabado`
+    producto = diagnostico.tratamiento.productos[0] ?? producto
+    const nivel = diagnostico.severidad ? ` (${diagnostico.severidad.toLowerCase()})` : ''
+    advertencias.push(
+      `El diagnóstico por imagen indica ${diagnostico.patologia.toLowerCase()}${nivel}. Antes de pintar: ${diagnostico.tratamiento.pasos[0]}`,
+    )
+    const estructural = diagnostico.advertencias.find((a) => /estructural/i.test(a))
+    if (estructural) advertencias.push(estructural)
   }
 
   if (tecnica.condicion === 'Con humedad') {
@@ -66,10 +80,11 @@ export function generarRecomendacion(data: SolicitudFormData): Recomendacion {
   const unidades = Math.max(1, Math.ceil(area / 15))
   const cantidadEstimada = area > 0 ? `${unidades} unidades (aprox. ${area} m²)` : `${unidades} unidades`
 
-  const aplicacion =
-    tecnica.condicion === 'Requiere reparación' ||
-    tecnica.condicion === 'Con pintura deteriorada' ||
-    tecnica.condicion === 'Con grietas'
+  const aplicacion = conDano
+    ? 'Preparación y tratamiento previo + 2 capas de acabado'
+    : tecnica.condicion === 'Requiere reparación' ||
+        tecnica.condicion === 'Con pintura deteriorada' ||
+        tecnica.condicion === 'Con grietas'
       ? '1 capa base + 2 capas de acabado'
       : '2 capas'
 

@@ -22,13 +22,16 @@ export function readStorage<T>(key: string, version: number): T | null {
   }
 }
 
-export function writeStorage<T>(key: string, version: number, data: T): void {
+/** Devuelve false si no se pudo guardar (almacenamiento lleno o bloqueado). */
+export function writeStorage<T>(key: string, version: number, data: T): boolean {
   try {
     const envelope: Envelope<T> = { version, data }
     window.localStorage.setItem(key, JSON.stringify(envelope))
+    return true
   } catch {
     // localStorage puede fallar en modo privado o si está lleno; la app
     // sigue funcionando en memoria para esa sesión.
+    return false
   }
 }
 
