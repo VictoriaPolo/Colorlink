@@ -1,11 +1,13 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { Camera, Eye, EyeOff, Loader2, Lock, Mail, MailCheck, Palette, Store, User } from 'lucide-react'
+import { Camera, Eye, EyeOff, Loader2, Lock, LogIn, Mail, MailCheck, Palette, Store, User, Users } from 'lucide-react'
 import Button from '@/shared/ui/Button'
 import Logo from '@/shared/brand/Logo'
 import FranjaColores from '@/shared/brand/FranjaColores'
 import AbanicoColores from '@/shared/brand/AbanicoColores'
 import { paletaColores } from '@/data/paletaColores'
+import { solicitudesRepository } from '@/data/repositories/solicitudesRepository'
+import { estaFinalizada } from '@/domain/solicitud/estadoMachine'
 import type { ResultadoAuth } from '@/data/repositories/authRepository.types'
 import { useAuth } from './AuthContext'
 import BotonesSociales from './BotonesSociales'
@@ -49,7 +51,26 @@ export default function AuthPage({ modo }: { modo: 'login' | 'registro' }) {
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [errorGeneral, setErrorGeneral] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [entrandoRol, setEntrandoRol] = useState<RolUsuario | null>(null)
   const [correoPendiente, setCorreoPendiente] = useState('')
+  const [sinAsignar, setSinAsignar] = useState<number | null>(null)
+
+  // Mismo número que vería el equipo al entrar a la consola (badge de
+  // "Solicitudes" en AdminLayout) — conecta el botón de demo con algo real
+  // en vez de ser una puerta vacía.
+  useEffect(() => {
+    let vivo = true
+    solicitudesRepository
+      .listar()
+      .then((lista) => {
+        if (!vivo) return
+        setSinAsignar(lista.filter((s) => !estaFinalizada(s.estado) && !s.gestion?.asignadoA).length)
+      })
+      .catch(() => {})
+    return () => {
+      vivo = false
+    }
+  }, [])
 
   if (!cargando && usuario) return <Navigate to={destino ?? HOME_POR_ROL[usuario.rol]} replace />
 
@@ -77,8 +98,10 @@ export default function AuthPage({ modo }: { modo: 'login' | 'registro' }) {
     const cuenta = cuentasDemo.find((c) => c.rol === rol)!
     setErrorGeneral('')
     setEnviando(true)
+    setEntrandoRol(rol)
     resolver(await login(cuenta.email, cuenta.password))
     setEnviando(false)
+    setEntrandoRol(null)
   }
 
   const fuerza = fuerzaPassword(password)
@@ -285,15 +308,65 @@ export default function AuthPage({ modo }: { modo: 'login' | 'registro' }) {
               </p>
 
               {!esRegistro && (
-                <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+                <div className="mt-6 flex flex-col gap-3">
                   <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Prototipo académico · probar sin crear cuenta</p>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Button type="button" variant="secondary" size="sm" disabled={enviando} onClick={() => entrarDemo('cliente')}>
+
+                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      fullWidth
+                      icon={<User size={14} />}
+                      disabled={enviando}
+                      onClick={() => entrarDemo('cliente')}
+                    >
                       Entrar como cliente
                     </Button>
-                    <Button type="button" variant="secondary" size="sm" disabled={enviando} onClick={() => entrarDemo('admin')}>
-                      Entrar como equipo
-                    </Button>
+                  </div>
+
+                  <div className="overflow-hidden rounded-lg bg-navy text-white">
+                    <div className="flex items-start gap-3 p-4">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-accent">
+                        <Users size={18} aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="inline-flex rounded bg-accent px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-navy uppercase">
+                          Consola del equipo
+                        </span>
+                        <p className="mt-1.5 text-xs leading-relaxed text-white/70">
+                          Resumen, solicitudes, pedidos y clientes — así es como el equipo atiende cada caso.
+                        </p>
+                      </div>
+                      {sinAsignar !== null && (
+                        <span
+                          className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-extrabold tabular-nums text-navy"
+                          title={`${sinAsignar} ${sinAsignar === 1 ? 'solicitud activa sin asignar' : 'solicitudes activas sin asignar'}`}
+                        >
+                          {sinAsignar}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={enviando}
+                      onClick={() => entrarDemo('admin')}
+                      aria-describedby="entrada-equipo-desc"
+                      className="flex w-full items-center justify-center gap-2 border-t border-white/10 bg-white/5 py-2.5 text-sm font-bold transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {enviando && entrandoRol === 'admin' ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" aria-hidden="true" /> Cargando consola del equipo…
+                        </>
+                      ) : (
+                        <>
+                          <LogIn size={15} aria-hidden="true" /> Entrar como equipo
+                        </>
+                      )}
+                    </button>
+                    <span id="entrada-equipo-desc" className="sr-only">
+                      Entra con la cuenta de demostración del equipo, sin necesidad de crear una cuenta.
+                    </span>
                   </div>
                 </div>
               )}

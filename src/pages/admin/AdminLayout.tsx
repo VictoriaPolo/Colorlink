@@ -123,15 +123,22 @@ export default function AdminLayout() {
           <Navegacion enlaces={enlaces} />
         </div>
         {usuario && (
-          <div className="flex items-center gap-3 border-t border-white/10 p-4">
-            <Avatar nombre={usuario.nombre} url={usuario.avatarUrl} className="h-9 w-9 text-sm" />
-            <div className="min-w-0 flex-1 leading-tight">
-              <p className="truncate text-sm font-semibold text-white">{usuario.nombre}</p>
-              <p className="truncate text-xs text-white/60">{usuario.email}</p>
+          <div className="flex flex-col gap-2 border-t border-white/10 p-4">
+            {usuario.demo && (
+              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white/70 uppercase">
+                Modo demostración
+              </span>
+            )}
+            <div className="flex items-center gap-3">
+              <Avatar nombre={usuario.nombre} url={usuario.avatarUrl} className="h-9 w-9 text-sm" />
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-sm font-semibold text-white">{usuario.nombre}</p>
+                <p className="truncate text-xs text-white/60">{usuario.email}</p>
+              </div>
+              <button onClick={salir} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Cerrar sesión" title="Cerrar sesión">
+                <LogOut size={17} />
+              </button>
             </div>
-            <button onClick={salir} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Cerrar sesión" title="Cerrar sesión">
-              <LogOut size={17} />
-            </button>
           </div>
         )}
       </aside>
