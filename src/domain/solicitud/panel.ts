@@ -24,7 +24,7 @@ export function diasHasta(fecha: string, hoy: Date): number | null {
 
 /** Qué tan urgente es una solicitud y por qué: el daño que muestra la foto y la fecha en que el cliente la necesita. */
 export function evaluarPrioridad(s: Solicitud, hoy = new Date()): { prioridad: Prioridad; motivos: string[] } {
-  if (estaFinalizada(s.estado)) return { prioridad: 'Baja', motivos: [] }
+  if (estaFinalizada(s.estado) || s.gestion?.cancelacion) return { prioridad: 'Baja', motivos: [] }
   const dias = diasHasta(s.data.proyecto.fechaRequerida, hoy)
   const severidad = s.diagnostico?.severidad
   const motivos: string[] = []
@@ -54,7 +54,7 @@ export const prioridadDe = (s: Solicitud, hoy = new Date()): Prioridad => evalua
 
 /** Lo más urgente primero; las finalizadas al final, de la más reciente a la más antigua. */
 export function ordenarPorUrgencia(lista: Solicitud[], hoy = new Date()): Solicitud[] {
-  const rango = (s: Solicitud) => (estaFinalizada(s.estado) ? 3 : PRIORIDADES.indexOf(prioridadDe(s, hoy)))
+  const rango = (s: Solicitud) => (estaFinalizada(s.estado) || s.gestion?.cancelacion ? 3 : PRIORIDADES.indexOf(prioridadDe(s, hoy)))
   return [...lista].sort((a, b) => rango(a) - rango(b) || b.fechaSolicitud.localeCompare(a.fechaSolicitud))
 }
 
@@ -88,6 +88,7 @@ export interface ResumenPanel {
   total: number
   activas: number
   finalizadas: number
+  canceladas: number
   /** Activas que todavía no tienen a nadie del equipo. */
   sinAsignar: number
   prioridadAlta: number
@@ -110,7 +111,8 @@ function lunesDe(d: Date): Date {
 }
 
 export function resumenPanel(solicitudes: Solicitud[], pedidos: Pedido[], hoy = new Date()): ResumenPanel {
-  const activas = solicitudes.filter((s) => !estaFinalizada(s.estado))
+  const canceladas = solicitudes.filter((s) => s.gestion?.cancelacion)
+  const activas = solicitudes.filter((s) => !estaFinalizada(s.estado) && !s.gestion?.cancelacion)
   const porEstado = Object.fromEntries(ORDEN_ESTADOS.map((e) => [e, 0])) as Record<EstadoSolicitud, number>
   for (const s of solicitudes) porEstado[s.estado] += 1
 
@@ -136,7 +138,8 @@ export function resumenPanel(solicitudes: Solicitud[], pedidos: Pedido[], hoy = 
   return {
     total: solicitudes.length,
     activas: activas.length,
-    finalizadas: solicitudes.length - activas.length,
+    finalizadas: solicitudes.filter((s) => estaFinalizada(s.estado) && !s.gestion?.cancelacion).length,
+    canceladas: canceladas.length,
     sinAsignar: activas.filter((s) => !s.gestion?.asignadoA).length,
     prioridadAlta: activas.filter((s) => prioridadDe(s, hoy) === 'Alta').length,
     porEstado,
@@ -146,6 +149,42 @@ export function resumenPanel(solicitudes: Solicitud[], pedidos: Pedido[], hoy = 
     pedidosMes: delMes.length,
     ventasMes: delMes.reduce((suma, p) => suma + p.total, 0),
   }
+}
+
+function diasEntreFechas(desde: string, hasta: string): number | null {
+  const a = new Date(`${desde}T00:00:00`)
+  const b = new Date(`${hasta}T00:00:00`)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null
+  return Math.round((b.getTime() - a.getTime()) / DIA_MS)
+}
+
+export interface TiempoEtapa {
+  estado: EstadoSolicitud
+  diasPromedio: number
+  /** Cuántas solicitudes ya pasaron por esa etapa y se usaron para el promedio. */
+  muestras: number
+}
+
+/** Cuánto tarda en promedio una solicitud en cada etapa antes de pasar a la
+ * siguiente (SLA operativo) — solo cuenta tramos ya completados, a partir de
+ * `historialEstados`. "Finalizada" no tiene tramo siguiente, así que no aplica. */
+export function tiempoPromedioPorEtapa(solicitudes: Solicitud[]): TiempoEtapa[] {
+  const sumas = new Map<EstadoSolicitud, { total: number; n: number }>()
+  for (const s of solicitudes) {
+    const historial = s.historialEstados
+    for (let i = 0; i < historial.length - 1; i++) {
+      const dias = diasEntreFechas(historial[i].fecha, historial[i + 1].fecha)
+      if (dias === null || dias < 0) continue
+      const acc = sumas.get(historial[i].estado) ?? { total: 0, n: 0 }
+      acc.total += dias
+      acc.n += 1
+      sumas.set(historial[i].estado, acc)
+    }
+  }
+  return ORDEN_ESTADOS.filter((e) => e !== 'Finalizada').map((estado) => {
+    const acc = sumas.get(estado)
+    return { estado, diasPromedio: acc ? acc.total / acc.n : 0, muestras: acc?.n ?? 0 }
+  })
 }
 
 export interface EventoActividad {

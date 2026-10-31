@@ -55,6 +55,13 @@ function mapKit(row: KitRow): Kit {
   }
 }
 
+interface NotaPedidoRow {
+  id: string
+  autor: string
+  texto: string
+  fecha: string
+}
+
 interface PedidoRow {
   id: string
   cliente_nombre: string
@@ -63,6 +70,8 @@ interface PedidoRow {
   total: number
   estado: string
   created_at: string
+  punto_retiro: string | null
+  notas: NotaPedidoRow[] | null
 }
 
 function mapPedido(row: PedidoRow): Pedido {
@@ -79,6 +88,8 @@ function mapPedido(row: PedidoRow): Pedido {
     total: row.total,
     estado: row.estado,
     fecha: row.created_at.slice(0, 10),
+    puntoRetiro: row.punto_retiro ?? undefined,
+    notas: row.notas ?? [],
   }
 }
 
@@ -95,7 +106,7 @@ export const tiendaRepositorySupabase: TiendaRepository = {
     return (data ?? []).map(mapKit)
   },
 
-  async crearPedido(items: ItemCarrito[], clienteNombre: string, clienteEmail: string): Promise<Pedido> {
+  async crearPedido(items: ItemCarrito[], clienteNombre: string, clienteEmail: string, puntoRetiro?: string): Promise<Pedido> {
     const total = items.reduce((sum, i) => sum + i.precioUnitario * i.cantidad, 0)
     const { data, error } = await requireClient()
       .from('pedidos')
@@ -109,6 +120,7 @@ export const tiendaRepositorySupabase: TiendaRepository = {
           precio_unitario: i.precioUnitario,
         })),
         total,
+        punto_retiro: puntoRetiro ?? null,
       })
       .select('id, created_at')
       .single()
@@ -122,6 +134,8 @@ export const tiendaRepositorySupabase: TiendaRepository = {
       total,
       estado: 'Recibido',
       fecha: String(data.created_at).slice(0, 10),
+      puntoRetiro,
+      notas: [],
     }
   },
 
@@ -141,8 +155,25 @@ export const tiendaRepositorySupabase: TiendaRepository = {
     return (data ?? []).map(mapPedido)
   },
 
+  async obtenerPedido(id) {
+    const { data, error } = await requireClient().from('pedidos').select('*').eq('id', id).maybeSingle()
+    if (error) throw error
+    return data ? mapPedido(data) : undefined
+  },
+
   async actualizarEstadoPedido(id, estado) {
     const { data, error } = await requireClient().from('pedidos').update({ estado }).eq('id', id).select('*').maybeSingle()
+    if (error) throw error
+    return data ? mapPedido(data) : undefined
+  },
+
+  async agregarNotaPedido(id, autor, texto) {
+    const { data: actual, error: errorLectura } = await requireClient().from('pedidos').select('notas').eq('id', id).maybeSingle()
+    if (errorLectura) throw errorLectura
+    if (!actual) return undefined
+    const nota: NotaPedidoRow = { id: `${id}-n${Date.now()}`, autor, texto: texto.trim(), fecha: new Date().toISOString() }
+    const notas = [...((actual.notas as NotaPedidoRow[] | null) ?? []), nota]
+    const { data, error } = await requireClient().from('pedidos').update({ notas }).eq('id', id).select('*').maybeSingle()
     if (error) throw error
     return data ? mapPedido(data) : undefined
   },

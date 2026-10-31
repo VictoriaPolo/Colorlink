@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { CheckCircle2, Inbox, Package, Receipt, Search, Wallet } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { CheckCircle2, Download, Inbox, Package, Receipt, Search, Wallet } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import { SkeletonCardList } from '@/shared/ui/Skeleton'
 import { controlClass } from '@/shared/ui/FormField'
 import { fechaCorta, formatoCOP } from '@/shared/lib/formato'
+import { descargarCSV } from '@/shared/lib/csv'
 import { useContextoAdmin } from '@/features/admin/ContextoAdmin'
 import { KpiCard } from '@/features/admin/componentes'
 import { resumenPanel } from '@/domain/solicitud/panel'
@@ -50,11 +51,36 @@ export default function AdminPedidos() {
 
   if (cargandoPedidos) return <SkeletonCardList count={4} />
 
+  const exportar = () => {
+    descargarCSV(
+      'pedidos-colorlink',
+      ['ID', 'Cliente', 'Correo', 'Productos', 'Total', 'Estado', 'Punto de retiro', 'Fecha'],
+      visibles.map((p) => [
+        p.id,
+        p.clienteNombre,
+        p.clienteEmail,
+        resumenItems(p).join(' | '),
+        p.total,
+        p.estado,
+        p.puntoRetiro ?? '',
+        p.fecha,
+      ]),
+    )
+  }
+
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Pedidos de la tienda</h1>
-        <p className="mt-1 text-sm text-body">Lo que los clientes compraron en el catálogo, para prepararlo y entregarlo.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Pedidos de la tienda</h1>
+          <p className="mt-1 text-sm text-body">Lo que los clientes compraron en el catálogo, para prepararlo y entregarlo.</p>
+        </div>
+        <button
+          onClick={exportar}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-navy hover:border-primary hover:text-primary"
+        >
+          <Download size={15} /> Exportar CSV
+        </button>
       </div>
 
       <div className="grid gap-4 grid-cols-2 2xl:grid-cols-4">
@@ -111,13 +137,18 @@ export default function AdminPedidos() {
                   <th className="px-4 py-3">Productos</th>
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">
+                    <span className="sr-only">Acciones</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {visibles.map((p) => (
                   <tr key={p.id} className="border-b border-slate-100 align-top last:border-0 hover:bg-brand-50/40">
                     <td className="px-4 py-3.5">
-                      <p className="font-bold text-navy">{p.id}</p>
+                      <Link to={`/admin/pedidos/${p.id}`} className="font-bold text-navy hover:text-primary">
+                        {p.id}
+                      </Link>
                       <p className="text-xs text-slate-400">{fechaCorta(p.fecha)}</p>
                     </td>
                     <td className="px-4 py-3.5">
@@ -147,6 +178,11 @@ export default function AdminPedidos() {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <Link to={`/admin/pedidos/${p.id}`} className="text-sm font-semibold text-primary hover:underline">
+                        Ver
+                      </Link>
                     </td>
                   </tr>
                 ))}

@@ -15,8 +15,13 @@ interface SolicitudesContextValue {
   avanzarEstadoSolicitud: (id: string) => Promise<Solicitud | undefined>
   /** Equipo: quién atiende la solicitud (sin responsable la deja sin asignar). */
   asignarSolicitud: (id: string, responsable: string | undefined) => Promise<Solicitud | undefined>
-  /** Equipo: nota interna firmada con el nombre de quien escribe. */
-  agregarNotaSolicitud: (id: string, texto: string) => Promise<Solicitud | undefined>
+  /** Equipo: nota interna firmada con el nombre de quien escribe (por defecto,
+   * la cuenta con sesión; pásalo si el equipo usa una identidad activa distinta). */
+  agregarNotaSolicitud: (id: string, texto: string, autor?: string) => Promise<Solicitud | undefined>
+  /** Equipo: cierra el caso sin avanzarlo más. */
+  cancelarSolicitud: (id: string, motivo: string, autor?: string) => Promise<Solicitud | undefined>
+  /** Equipo: deshace una cancelación. */
+  reactivarSolicitud: (id: string) => Promise<Solicitud | undefined>
 }
 
 const SolicitudesContext = createContext<SolicitudesContextValue | null>(null)
@@ -65,8 +70,11 @@ export function SolicitudesProvider({ children }: { children: ReactNode }) {
       obtenerSolicitud: (id) => solicitudes.find((s) => s.id === id),
       avanzarEstadoSolicitud: async (id) => reemplazar(await solicitudesRepository.avanzar(id)),
       asignarSolicitud: async (id, responsable) => reemplazar(await solicitudesRepository.asignar(id, responsable)),
-      agregarNotaSolicitud: async (id, texto) =>
-        reemplazar(await solicitudesRepository.agregarNota(id, usuario?.nombre ?? 'Equipo COLORLINK', texto)),
+      agregarNotaSolicitud: async (id, texto, autor) =>
+        reemplazar(await solicitudesRepository.agregarNota(id, autor ?? usuario?.nombre ?? 'Equipo COLORLINK', texto)),
+      cancelarSolicitud: async (id, motivo, autor) =>
+        reemplazar(await solicitudesRepository.cancelar(id, autor ?? usuario?.nombre ?? 'Equipo COLORLINK', motivo)),
+      reactivarSolicitud: async (id) => reemplazar(await solicitudesRepository.reactivar(id)),
     }
   }, [todas, cargando, usuario])
 

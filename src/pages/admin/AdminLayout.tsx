@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { ClipboardList, LayoutDashboard, LogOut, Package, Users, type LucideIcon } from 'lucide-react'
+import { ClipboardList, LayoutDashboard, LogOut, Package, UserCog, Users, type LucideIcon } from 'lucide-react'
 import Logo from '@/shared/brand/Logo'
 import FranjaColores from '@/shared/brand/FranjaColores'
 import Avatar from '@/shared/ui/Avatar'
@@ -8,6 +8,9 @@ import { useToast } from '@/shared/lib/toast'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
 import type { ContextoAdmin } from '@/features/admin/ContextoAdmin'
+import NotificationBell from '@/features/admin/NotificationBell'
+import { leerIdentidad, guardarIdentidad } from '@/features/admin/identidad'
+import { useEquipo } from '@/data/repositories/equipoRepository'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 import { estaFinalizada } from '@/domain/solicitud/estadoMachine'
 import type { Pedido } from '@/domain/tienda/types'
@@ -55,9 +58,11 @@ export default function AdminLayout() {
   const { usuario, logout } = useAuth()
   const { solicitudes } = useSolicitudes()
   const { mostrarToast } = useToast()
+  const { equipo } = useEquipo()
   const navigate = useNavigate()
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [cargandoPedidos, setCargandoPedidos] = useState(true)
+  const [identidad, setIdentidad] = useState(() => leerIdentidad(usuario?.nombre ?? 'Equipo COLORLINK'))
 
   useEffect(() => {
     let vivo = true
@@ -82,11 +87,33 @@ export default function AdminLayout() {
     }
   }
 
+  const agregarNotaPedido: ContextoAdmin['agregarNotaPedido'] = async (id, texto) => {
+    try {
+      const actualizado = await tiendaRepository.agregarNotaPedido(id, identidad, texto)
+      if (!actualizado) return
+      setPedidos((prev) => prev.map((p) => (p.id === id ? actualizado : p)))
+      mostrarToast('Nota agregada.')
+    } catch {
+      mostrarToast('No se pudo guardar la nota. Inténtalo de nuevo.', 'error')
+    }
+  }
+
+  const cambiarIdentidad = (nombre: string) => {
+    setIdentidad(nombre)
+    guardarIdentidad(nombre)
+  }
+
   const enlaces: Enlace[] = [
     { to: '/admin', etiqueta: 'Resumen', icono: LayoutDashboard, exacto: true },
-    { to: '/admin/solicitudes', etiqueta: 'Solicitudes', icono: ClipboardList, conteo: solicitudes.filter((s) => !estaFinalizada(s.estado)).length },
+    {
+      to: '/admin/solicitudes',
+      etiqueta: 'Solicitudes',
+      icono: ClipboardList,
+      conteo: solicitudes.filter((s) => !estaFinalizada(s.estado) && !s.gestion?.cancelacion).length,
+    },
     { to: '/admin/pedidos', etiqueta: 'Pedidos', icono: Package, conteo: pedidos.filter((p) => p.estado === 'Recibido' || p.estado === 'En preparación').length },
     { to: '/admin/clientes', etiqueta: 'Clientes', icono: Users },
+    { to: '/admin/equipo', etiqueta: 'Equipo', icono: UserCog },
   ]
 
   const salir = async () => {
@@ -94,7 +121,7 @@ export default function AdminLayout() {
     navigate('/login')
   }
 
-  const contexto: ContextoAdmin = { pedidos, cargandoPedidos, cambiarEstadoPedido }
+  const contexto: ContextoAdmin = { pedidos, cargandoPedidos, cambiarEstadoPedido, agregarNotaPedido, identidad, cambiarIdentidad }
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-muted lg:flex-row">
@@ -103,9 +130,12 @@ export default function AdminLayout() {
         <FranjaColores />
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <Logo claro subtitulo={false} />
-          <button onClick={salir} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Cerrar sesión">
-            <LogOut size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <button onClick={salir} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Cerrar sesión">
+              <LogOut size={18} />
+            </button>
+          </div>
         </div>
         <Navegacion enlaces={enlaces} horizontal />
       </header>
@@ -113,9 +143,12 @@ export default function AdminLayout() {
       {/* Escritorio: barra lateral fija */}
       <aside className="hidden w-64 shrink-0 flex-col bg-navy lg:sticky lg:top-0 lg:flex lg:h-screen">
         <FranjaColores />
-        <div className="px-5 pt-6 pb-2">
+        <div className="flex items-center justify-between gap-2 px-5 pt-6 pb-2">
           <Logo claro />
-          <span className="mt-4 inline-block rounded bg-accent px-2.5 py-1 text-[11px] font-extrabold tracking-wider text-navy uppercase">
+          <NotificationBell />
+        </div>
+        <div className="px-5 pb-2">
+          <span className="inline-block rounded bg-accent px-2.5 py-1 text-[11px] font-extrabold tracking-wider text-navy uppercase">
             Consola del equipo
           </span>
         </div>
@@ -125,14 +158,31 @@ export default function AdminLayout() {
         {usuario && (
           <div className="flex flex-col gap-2 border-t border-white/10 p-4">
             {usuario.demo && (
-              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white/70 uppercase">
-                Modo demostración
-              </span>
+              <>
+                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white/70 uppercase">
+                  Modo demostración
+                </span>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold tracking-wide text-white/50 uppercase">Actuando como</span>
+                  <select
+                    value={identidad}
+                    onChange={(e) => cambiarIdentidad(e.target.value)}
+                    className="rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-xs font-semibold text-white"
+                  >
+                    <option value={usuario.nombre}>{usuario.nombre} (cuenta compartida)</option>
+                    {equipo.map((m) => (
+                      <option key={m.nombre} value={m.nombre}>
+                        {m.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
             )}
             <div className="flex items-center gap-3">
-              <Avatar nombre={usuario.nombre} url={usuario.avatarUrl} className="h-9 w-9 text-sm" />
+              <Avatar nombre={identidad} className="h-9 w-9 text-sm" />
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-sm font-semibold text-white">{usuario.nombre}</p>
+                <p className="truncate text-sm font-semibold text-white">{identidad}</p>
                 <p className="truncate text-xs text-white/60">{usuario.email}</p>
               </div>
               <button onClick={salir} className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Cerrar sesión" title="Cerrar sesión">

@@ -8,10 +8,19 @@ export interface Toast {
   mensaje: string
 }
 
+export interface Notificacion extends Toast {
+  fecha: string
+  leida: boolean
+}
+
 export interface ToastContextValue {
   toasts: Toast[]
   mostrarToast: (mensaje: string, tipo?: ToastTipo) => void
   descartarToast: (id: string) => void
+  /** Historial persistido de lo que se avisó, para el centro de notificaciones del equipo. */
+  notificaciones: Notificacion[]
+  marcarNotificacionesLeidas: () => void
+  limpiarNotificaciones: () => void
 }
 
 export const ToastContext = createContext<ToastContextValue | null>(null)

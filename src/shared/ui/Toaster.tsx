@@ -1,6 +1,7 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { CheckCircle2, XCircle, Info, X } from 'lucide-react'
-import { ToastContext, type Toast, type ToastTipo } from '@/shared/lib/toast'
+import { ToastContext, type Notificacion, type Toast, type ToastTipo } from '@/shared/lib/toast'
+import { readStorage, writeStorage } from '@/data/repositories/storage'
 
 const ICONS: Record<ToastTipo, typeof CheckCircle2> = {
   success: CheckCircle2,
@@ -14,8 +15,17 @@ const STYLES: Record<ToastTipo, string> = {
   info: 'border-brand-100 bg-white text-primary',
 }
 
+const STORAGE_KEY = 'colorlink:notificaciones'
+const STORAGE_VERSION = 1
+const MAX_NOTIFICACIONES = 30
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
+
+  useEffect(() => {
+    setNotificaciones(readStorage<Notificacion[]>(STORAGE_KEY, STORAGE_VERSION) ?? [])
+  }, [])
 
   const descartarToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -26,12 +36,33 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
       setToasts((prev) => [...prev, { id, tipo, mensaje }])
       setTimeout(() => descartarToast(id), 3500)
+
+      setNotificaciones((prev) => {
+        const siguiente = [{ id, tipo, mensaje, fecha: new Date().toISOString(), leida: false }, ...prev].slice(0, MAX_NOTIFICACIONES)
+        writeStorage(STORAGE_KEY, STORAGE_VERSION, siguiente)
+        return siguiente
+      })
     },
     [descartarToast],
   )
 
+  const marcarNotificacionesLeidas = useCallback(() => {
+    setNotificaciones((prev) => {
+      const siguiente = prev.map((n) => ({ ...n, leida: true }))
+      writeStorage(STORAGE_KEY, STORAGE_VERSION, siguiente)
+      return siguiente
+    })
+  }, [])
+
+  const limpiarNotificaciones = useCallback(() => {
+    setNotificaciones([])
+    writeStorage(STORAGE_KEY, STORAGE_VERSION, [])
+  }, [])
+
   return (
-    <ToastContext.Provider value={{ toasts, mostrarToast, descartarToast }}>
+    <ToastContext.Provider
+      value={{ toasts, mostrarToast, descartarToast, notificaciones, marcarNotificacionesLeidas, limpiarNotificaciones }}
+    >
       {children}
       <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4 sm:items-end sm:right-4 sm:left-auto">
         {toasts.map((toast) => {

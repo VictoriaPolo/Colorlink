@@ -89,4 +89,22 @@ export const solicitudesRepositoryLocal: SolicitudesRepository = {
     const nota: NotaInterna = { id: `${id}-n${Date.now()}`, autor, texto: texto.trim(), fecha: new Date().toISOString() }
     return modificar(id, (s) => ({ ...s, gestion: { ...s.gestion, notas: [...(s.gestion?.notas ?? []), nota] } }))
   },
+
+  async cancelar(id, autor, motivo) {
+    return modificar(id, (s) => ({
+      ...s,
+      gestion: {
+        asignadoA: s.gestion?.asignadoA,
+        notas: s.gestion?.notas ?? [],
+        cancelacion: { motivo: motivo.trim(), autor, fecha: new Date().toISOString() },
+      },
+    }))
+  },
+
+  async reactivar(id) {
+    return modificar(id, (s) => ({
+      ...s,
+      gestion: { asignadoA: s.gestion?.asignadoA, notas: s.gestion?.notas ?? [], cancelacion: undefined },
+    }))
+  },
 }

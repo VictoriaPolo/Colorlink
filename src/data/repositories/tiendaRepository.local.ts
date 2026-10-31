@@ -228,7 +228,7 @@ export const tiendaRepositoryLocal: TiendaRepository = {
     return KITS
   },
 
-  async crearPedido(items, clienteNombre, clienteEmail) {
+  async crearPedido(items, clienteNombre, clienteEmail, puntoRetiro) {
     const pedidos = cargarPedidos()
     const total = items.reduce((sum, i) => sum + i.precioUnitario * i.cantidad, 0)
     const nuevo: Pedido = {
@@ -239,6 +239,7 @@ export const tiendaRepositoryLocal: TiendaRepository = {
       total,
       estado: 'Recibido',
       fecha: new Date().toISOString().slice(0, 10),
+      puntoRetiro,
     }
     writeStorage(STORAGE_KEY, STORAGE_VERSION, [nuevo, ...pedidos])
     return nuevo
@@ -252,11 +253,25 @@ export const tiendaRepositoryLocal: TiendaRepository = {
     return cargarPedidos()
   },
 
+  async obtenerPedido(id) {
+    return cargarPedidos().find((p) => p.id === id)
+  },
+
   async actualizarEstadoPedido(id, estado) {
     const pedidos = cargarPedidos()
     const actual = pedidos.find((p) => p.id === id)
     if (!actual) return undefined
     const actualizado = { ...actual, estado }
+    writeStorage(STORAGE_KEY, STORAGE_VERSION, pedidos.map((p) => (p.id === id ? actualizado : p)))
+    return actualizado
+  },
+
+  async agregarNotaPedido(id, autor, texto) {
+    const pedidos = cargarPedidos()
+    const actual = pedidos.find((p) => p.id === id)
+    if (!actual) return undefined
+    const nota = { id: `${id}-n${Date.now()}`, autor, texto: texto.trim(), fecha: new Date().toISOString() }
+    const actualizado = { ...actual, notas: [...(actual.notas ?? []), nota] }
     writeStorage(STORAGE_KEY, STORAGE_VERSION, pedidos.map((p) => (p.id === id ? actualizado : p)))
     return actualizado
   },

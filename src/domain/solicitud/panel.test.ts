@@ -10,8 +10,9 @@ import {
   prioridadDe,
   resumenPanel,
   SIN_FILTROS,
+  tiempoPromedioPorEtapa,
 } from './panel'
-import type { EstadoSolicitud, PatologiaDetectada, Severidad, Solicitud } from './types'
+import type { EstadoSolicitud, HistorialEstado, PatologiaDetectada, Severidad, Solicitud } from './types'
 
 // Viernes 30 de octubre de 2026.
 const HOY = new Date(2026, 9, 30)
@@ -28,6 +29,8 @@ interface Opciones {
   propietario?: string
   ciudad?: string
   descripcion?: string
+  cancelada?: boolean
+  historial?: HistorialEstado[]
 }
 
 function solicitud(o: Opciones = {}): Solicitud {
@@ -36,7 +39,7 @@ function solicitud(o: Opciones = {}): Solicitud {
     id: o.id ?? 'CL-1',
     fechaSolicitud: fecha,
     estado: o.estado ?? 'En análisis',
-    historialEstados: [{ estado: 'Recibida', fecha }],
+    historialEstados: o.historial ?? [{ estado: 'Recibida', fecha }],
     propietario: o.propietario,
     data: {
       identificacion: { cliente: o.cliente ?? 'Cliente Demo', nit: '1', responsable: 'Resp', canal: 'Página web' },
@@ -48,7 +51,14 @@ function solicitud(o: Opciones = {}): Solicitud {
     diagnostico: o.patologia
       ? ({ patologia: o.patologia, severidad: o.severidad ?? null } as unknown as Solicitud['diagnostico'])
       : undefined,
-    gestion: o.asignadoA ? { asignadoA: o.asignadoA, notas: [] } : undefined,
+    gestion:
+      o.asignadoA || o.cancelada
+        ? {
+            asignadoA: o.asignadoA,
+            notas: [],
+            cancelacion: o.cancelada ? { motivo: 'El cliente no respondió.', autor: 'Camila Vargas', fecha: '2026-10-21T10:00:00.000Z' } : undefined,
+          }
+        : undefined,
   }
 }
 
@@ -249,5 +259,54 @@ describe('clientesDe', () => {
   it('ordena por la actividad más reciente', () => {
     expect(clientes.map((c) => c.nombre)).toEqual(['Ana Pérez', 'Constructora Norte', 'Luis Gómez'])
     expect(clientes[0].ultimaActividad).toBe('2026-10-29')
+  })
+})
+
+describe('cancelación', () => {
+  it('una solicitud cancelada es prioridad baja aunque la fecha esté vencida', () => {
+    const s = solicitud({ requerida: '2026-10-20', cancelada: true })
+    expect(evaluarPrioridad(s, HOY).prioridad).toBe('Baja')
+    expect(evaluarPrioridad(s, HOY).motivos).toEqual([])
+  })
+
+  it('resumenPanel no cuenta las canceladas como activas ni como finalizadas, y las reporta aparte', () => {
+    const resumen = resumenPanel(
+      [solicitud({ id: 'a' }), solicitud({ id: 'b', cancelada: true }), solicitud({ id: 'c', estado: 'Finalizada' })],
+      [],
+      HOY,
+    )
+    expect(resumen).toMatchObject({ total: 3, activas: 1, finalizadas: 1, canceladas: 1 })
+  })
+
+  it('ordenarPorUrgencia manda las canceladas al final, junto con las finalizadas', () => {
+    const urgente = solicitud({ id: 'urgente', requerida: '2026-10-25' })
+    const cancelada = solicitud({ id: 'cancelada', requerida: '2026-10-20', cancelada: true })
+    const finalizada = solicitud({ id: 'finalizada', estado: 'Finalizada' })
+    const orden = ordenarPorUrgencia([cancelada, finalizada, urgente], HOY).map((s) => s.id)
+    expect(orden[0]).toBe('urgente')
+    expect(orden.slice(1).sort()).toEqual(['cancelada', 'finalizada'])
+  })
+})
+
+describe('tiempoPromedioPorEtapa', () => {
+  it('promedia los días entre cada cambio de estado consecutivo', () => {
+    const historialA: HistorialEstado[] = [
+      { estado: 'Recibida', fecha: '2026-10-01' },
+      { estado: 'En análisis', fecha: '2026-10-01' },
+      { estado: 'Solución propuesta', fecha: '2026-10-05' },
+    ]
+    const historialB: HistorialEstado[] = [
+      { estado: 'Recibida', fecha: '2026-10-10' },
+      { estado: 'En análisis', fecha: '2026-10-10' },
+      { estado: 'Solución propuesta', fecha: '2026-10-13' },
+    ]
+    const resultado = tiempoPromedioPorEtapa([solicitud({ historial: historialA }), solicitud({ historial: historialB })])
+    const enAnalisis = resultado.find((r) => r.estado === 'En análisis')
+    expect(enAnalisis).toMatchObject({ diasPromedio: 3.5, muestras: 2 })
+  })
+
+  it('una etapa sin tramos completados todavía queda en 0 con 0 muestras', () => {
+    const resultado = tiempoPromedioPorEtapa([solicitud({ historial: [{ estado: 'Recibida', fecha: '2026-10-01' }] })])
+    expect(resultado.find((r) => r.estado === 'Servicio programado')).toMatchObject({ diasPromedio: 0, muestras: 0 })
   })
 })

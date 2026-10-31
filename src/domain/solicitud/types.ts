@@ -168,10 +168,21 @@ export interface NotaInterna {
   fecha: string
 }
 
-/** Lo que el equipo agrega a una solicitud: quién la atiende y sus notas internas. */
+export interface Cancelacion {
+  motivo: string
+  /** Quién la canceló (nombre de la persona del equipo). */
+  autor: string
+  /** Fecha y hora ISO. */
+  fecha: string
+}
+
+/** Lo que el equipo agrega a una solicitud: quién la atiende, sus notas internas
+ * y si quedó cancelada (orthogonal al avance normal de estados: una solicitud
+ * cancelada conserva su último estado, solo deja de poder avanzar). */
 export interface GestionSolicitud {
   asignadoA?: string
   notas: NotaInterna[]
+  cancelacion?: Cancelacion
 }
 
 export interface Solicitud {

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertOctagon, ArrowRight, ClipboardList, Inbox, Package, UserX, Users, Wallet } from 'lucide-react'
+import { AlertOctagon, ArrowRight, Ban, ClipboardList, Inbox, Package, UserX, Users, Wallet } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import { SkeletonCardList } from '@/shared/ui/Skeleton'
 import { ESTILO_ESTADO } from '@/shared/ui/estadoEstilos'
@@ -12,7 +12,15 @@ import { useContextoAdmin } from '@/features/admin/ContextoAdmin'
 import { Asignado, ChipPrioridad, ChipProblema, KpiCard, Miniatura } from '@/features/admin/componentes'
 import { COLOR_PATOLOGIA } from '@/features/diagnostico/imagen'
 import { estaFinalizada } from '@/domain/solicitud/estadoMachine'
-import { actividadReciente, clientesDe, evaluarPrioridad, ordenarPorUrgencia, resumenPanel, type ResumenPanel } from '@/domain/solicitud/panel'
+import {
+  actividadReciente,
+  clientesDe,
+  evaluarPrioridad,
+  ordenarPorUrgencia,
+  resumenPanel,
+  tiempoPromedioPorEtapa,
+  type ResumenPanel,
+} from '@/domain/solicitud/panel'
 import { ORDEN_ESTADOS } from '@/domain/solicitud/types'
 
 function BarrasSemanales({ semanas }: { semanas: ResumenPanel['porSemana'] }) {
@@ -39,23 +47,24 @@ function BarrasSemanales({ semanas }: { semanas: ResumenPanel['porSemana'] }) {
 export default function AdminResumen() {
   const { usuario } = useAuth()
   const { solicitudes, cargando, asignarSolicitud } = useSolicitudes()
-  const { pedidos } = useContextoAdmin()
+  const { pedidos, identidad } = useContextoAdmin()
   const { mostrarToast } = useToast()
   const hoy = useMemo(() => new Date(), [])
 
   const resumen = useMemo(() => resumenPanel(solicitudes, pedidos, hoy), [solicitudes, pedidos, hoy])
   const urgentes = useMemo(
-    () => ordenarPorUrgencia(solicitudes.filter((s) => !estaFinalizada(s.estado)), hoy).slice(0, 5),
+    () => ordenarPorUrgencia(solicitudes.filter((s) => !estaFinalizada(s.estado) && !s.gestion?.cancelacion), hoy).slice(0, 5),
     [solicitudes, hoy],
   )
   const actividad = useMemo(() => actividadReciente(solicitudes), [solicitudes])
   const totalClientes = useMemo(() => clientesDe(solicitudes, pedidos).length, [solicitudes, pedidos])
+  const tiempos = useMemo(() => tiempoPromedioPorEtapa(solicitudes).filter((t) => t.muestras > 0), [solicitudes])
   const maxProblema = Math.max(1, ...resumen.porProblema.map((p) => p.cantidad))
+  const maxDias = Math.max(1, ...tiempos.map((t) => t.diasPromedio))
 
   const tomar = async (id: string) => {
-    if (!usuario) return
-    const actualizada = await asignarSolicitud(id, usuario.nombre)
-    if (actualizada) mostrarToast(`${id} quedó asignada a ${usuario.nombre}.`)
+    const actualizada = await asignarSolicitud(id, identidad)
+    if (actualizada) mostrarToast(`${id} quedó asignada a ${identidad}.`)
   }
 
   const fechaTexto = hoy.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -96,6 +105,9 @@ export default function AdminResumen() {
         <KpiCard icono={Package} etiqueta="Pedidos por atender" valor={resumen.pedidosPorAtender} detalle={`de ${pedidos.length} pedidos`} to="/admin/pedidos" />
         <KpiCard icono={Users} etiqueta="Clientes" valor={totalClientes} detalle="con solicitudes o pedidos" to="/admin/clientes" />
         <KpiCard icono={Wallet} etiqueta="Ventas del mes" valor={formatoCOP.format(resumen.ventasMes)} detalle={`${resumen.pedidosMes} pedidos sin cancelar`} to="/admin/pedidos" />
+        {resumen.canceladas > 0 && (
+          <KpiCard icono={Ban} etiqueta="Canceladas" valor={resumen.canceladas} detalle="el equipo cerró el caso" to="/admin/solicitudes" />
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -202,6 +214,35 @@ export default function AdminResumen() {
         </Card>
 
         <Card className="p-5 lg:col-span-2">
+          <h2 className="mb-1 text-base font-bold text-navy">Tiempo promedio por etapa</h2>
+          <p className="mb-4 text-xs text-slate-400">Cuánto tarda en pasar a la siguiente, en días.</p>
+          {tiempos.length === 0 ? (
+            <p className="text-sm text-slate-400">Todavía no hay suficientes solicitudes avanzadas para calcularlo.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {tiempos.map(({ estado, diasPromedio, muestras }) => (
+                <li key={estado}>
+                  <span className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-navy">{estado}</span>
+                    <span className="font-bold text-body tabular-nums">
+                      {diasPromedio.toFixed(1)} {diasPromedio === 1 ? 'día' : 'días'}
+                    </span>
+                  </span>
+                  <span className="mt-1 block h-2 overflow-hidden rounded-full bg-slate-100">
+                    <span className={`block h-full rounded-full ${ESTILO_ESTADO[estado].barra}`} style={{ width: `${(diasPromedio / maxDias) * 100}%` }} />
+                  </span>
+                  <span className="mt-0.5 block text-[10px] text-slate-400">
+                    {muestras} {muestras === 1 ? 'solicitud' : 'solicitudes'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="p-5 lg:col-span-5">
           <h2 className="mb-4 text-base font-bold text-navy">Actividad reciente</h2>
           {actividad.length === 0 ? (
             <p className="text-sm text-slate-400">Todavía no hay movimientos.</p>

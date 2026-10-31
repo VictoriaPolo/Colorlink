@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Inbox, Search, UserRound, Users, Wallet } from 'lucide-react'
+import { Download, Inbox, Search, UserRound, Users, Wallet } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Avatar from '@/shared/ui/Avatar'
 import { SkeletonCardList } from '@/shared/ui/Skeleton'
 import { controlClass } from '@/shared/ui/FormField'
 import { fechaCorta, formatoCOP } from '@/shared/lib/formato'
+import { descargarCSV } from '@/shared/lib/csv'
 import { useContextoAdmin } from '@/features/admin/ContextoAdmin'
 import { KpiCard } from '@/features/admin/componentes'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
@@ -36,11 +37,27 @@ export default function AdminClientes() {
     setParams(siguientes, { replace: true })
   }
 
+  const exportar = () => {
+    descargarCSV(
+      'clientes-colorlink',
+      ['Nombre', 'Correo', 'Ciudad', 'Solicitudes', 'Activas', 'Pedidos', 'Comprado', 'Última actividad'],
+      visibles.map((c) => [c.nombre, c.email, c.ciudad, c.solicitudes, c.activas, c.pedidos, c.comprado, c.ultimaActividad]),
+    )
+  }
+
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Clientes</h1>
-        <p className="mt-1 text-sm text-body">Quién pidió soluciones y quién compró en la tienda, todo junto.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-navy sm:text-3xl">Clientes</h1>
+          <p className="mt-1 text-sm text-body">Quién pidió soluciones y quién compró en la tienda, todo junto.</p>
+        </div>
+        <button
+          onClick={exportar}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-navy hover:border-primary hover:text-primary"
+        >
+          <Download size={15} /> Exportar CSV
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

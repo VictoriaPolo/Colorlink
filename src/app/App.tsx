@@ -29,7 +29,9 @@ const AdminResumen = lazy(() => import('@/pages/admin/AdminResumen'))
 const AdminSolicitudes = lazy(() => import('@/pages/admin/AdminSolicitudes'))
 const AdminSolicitudDetalle = lazy(() => import('@/pages/admin/AdminSolicitudDetalle'))
 const AdminPedidos = lazy(() => import('@/pages/admin/AdminPedidos'))
+const AdminPedidoDetalle = lazy(() => import('@/pages/admin/AdminPedidoDetalle'))
 const AdminClientes = lazy(() => import('@/pages/admin/AdminClientes'))
+const AdminEquipo = lazy(() => import('@/pages/admin/AdminEquipo'))
 
 function Cargando() {
   return (
@@ -92,7 +94,9 @@ function Rutas() {
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="solicitudes/:id" element={<AdminSolicitudDetalle />} />
           <Route path="pedidos" element={<AdminPedidos />} />
+          <Route path="pedidos/:id" element={<AdminPedidoDetalle />} />
           <Route path="clientes" element={<AdminClientes />} />
+          <Route path="equipo" element={<AdminEquipo />} />
           <Route path=":id" element={<RedirigirSolicitud />} />
         </Route>
         <Route

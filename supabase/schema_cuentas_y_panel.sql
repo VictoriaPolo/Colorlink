@@ -64,8 +64,12 @@ create table if not exists extras_solicitud (
   diagnostico jsonb,
   asignado_a text,
   notas jsonb not null default '[]'::jsonb,
+  cancelacion jsonb,
   updated_at timestamptz not null default now()
 );
+
+-- Por si la tabla ya existía de una corrida anterior del script.
+alter table extras_solicitud add column if not exists cancelacion jsonb;
 
 create or replace function tocar_extras() returns trigger
 language plpgsql

@@ -45,6 +45,14 @@ export interface ItemCarrito {
 /** Etapas por las que pasa un pedido, en orden; "Cancelado" puede ocurrir antes de entregarse. */
 export const ESTADOS_PEDIDO = ['Recibido', 'En preparación', 'Listo para retiro', 'Entregado', 'Cancelado'] as const
 
+export interface NotaPedido {
+  id: string
+  autor: string
+  texto: string
+  /** Fecha y hora ISO. */
+  fecha: string
+}
+
 export interface Pedido {
   id: string
   clienteNombre: string
@@ -53,4 +61,8 @@ export interface Pedido {
   total: number
   estado: string
   fecha: string
+  /** Dónde el cliente va a retirarlo — ver data/puntosDeRetiro.ts. */
+  puntoRetiro?: string
+  /** Notas internas del equipo, igual que en las solicitudes. */
+  notas?: NotaPedido[]
 }

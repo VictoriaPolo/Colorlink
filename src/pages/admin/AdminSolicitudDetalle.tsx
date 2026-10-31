@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, FastForward, NotebookPen, UserCheck } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Ban, Check, FastForward, NotebookPen, RotateCcw, UserCheck } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Badge from '@/shared/ui/Badge'
 import Button from '@/shared/ui/Button'
@@ -8,12 +8,12 @@ import Avatar from '@/shared/ui/Avatar'
 import { controlClass } from '@/shared/ui/FormField'
 import { fechaConHora, fechaCorta } from '@/shared/lib/formato'
 import { useToast } from '@/shared/lib/toast'
-import { useAuth } from '@/features/auth/AuthContext'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
 import { ChipPrioridad, ChipProblema } from '@/features/admin/componentes'
+import { useContextoAdmin } from '@/features/admin/ContextoAdmin'
 import { DatosProyecto, EvidenciaYDiagnostico, SolucionRecomendada } from '@/features/solicitudes/detalle/bloques'
+import { useEquipo } from '@/data/repositories/equipoRepository'
 import { estaFinalizada, etiquetaSiguienteAccion } from '@/domain/solicitud/estadoMachine'
-import { EQUIPO } from '@/domain/solicitud/equipo'
 import { evaluarPrioridad } from '@/domain/solicitud/panel'
 import { ORDEN_ESTADOS, type Solicitud } from '@/domain/solicitud/types'
 
@@ -49,11 +49,16 @@ function EtapasVerticales({ solicitud }: { solicitud: Solicitud }) {
 
 export default function AdminSolicitudDetalle() {
   const { id } = useParams<{ id: string }>()
-  const { usuario } = useAuth()
-  const { obtenerSolicitud, avanzarEstadoSolicitud, asignarSolicitud, agregarNotaSolicitud } = useSolicitudes()
+  const { identidad } = useContextoAdmin()
+  const { equipo } = useEquipo()
+  const { obtenerSolicitud, avanzarEstadoSolicitud, asignarSolicitud, agregarNotaSolicitud, cancelarSolicitud, reactivarSolicitud } =
+    useSolicitudes()
   const { mostrarToast } = useToast()
   const [nota, setNota] = useState('')
   const [guardandoNota, setGuardandoNota] = useState(false)
+  const [motivoCancelacion, setMotivoCancelacion] = useState('')
+  const [cancelando, setCancelando] = useState(false)
+  const [mostrarFormCancelar, setMostrarFormCancelar] = useState(false)
   const hoy = useMemo(() => new Date(), [])
   const solicitud = id ? obtenerSolicitud(id) : undefined
 
@@ -71,9 +76,10 @@ export default function AdminSolicitudDetalle() {
   const { prioridad, motivos } = evaluarPrioridad(solicitud, hoy)
   const siguiente = etiquetaSiguienteAccion(solicitud.estado)
   const asignado = solicitud.gestion?.asignadoA
-  const esMia = !!usuario && asignado === usuario.nombre
+  const cancelacion = solicitud.gestion?.cancelacion
+  const esMia = asignado === identidad
   // Quien tomó la solicitud puede no estar en la lista del equipo (por ejemplo, la cuenta de administración).
-  const personas = [...EQUIPO.map((m) => m.nombre), ...(asignado && !EQUIPO.some((m) => m.nombre === asignado) ? [asignado] : [])]
+  const personas = [...equipo.map((m) => m.nombre), ...(asignado && !equipo.some((m) => m.nombre === asignado) ? [asignado] : [])]
   const notas = [...(solicitud.gestion?.notas ?? [])].sort((a, b) => b.fecha.localeCompare(a.fecha))
 
   const avanzar = async () => {
@@ -91,7 +97,7 @@ export default function AdminSolicitudDetalle() {
     if (!nota.trim()) return
     setGuardandoNota(true)
     try {
-      const actualizada = await agregarNotaSolicitud(solicitud.id, nota)
+      const actualizada = await agregarNotaSolicitud(solicitud.id, nota, identidad)
       if (actualizada) {
         setNota('')
         mostrarToast('Nota agregada.')
@@ -101,6 +107,29 @@ export default function AdminSolicitudDetalle() {
     } finally {
       setGuardandoNota(false)
     }
+  }
+
+  const cancelar = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!motivoCancelacion.trim()) return
+    setCancelando(true)
+    try {
+      const actualizada = await cancelarSolicitud(solicitud.id, motivoCancelacion, identidad)
+      if (actualizada) {
+        setMotivoCancelacion('')
+        setMostrarFormCancelar(false)
+        mostrarToast(`${solicitud.id} quedó cancelada.`)
+      }
+    } catch {
+      mostrarToast('No se pudo cancelar la solicitud. Inténtalo de nuevo.', 'error')
+    } finally {
+      setCancelando(false)
+    }
+  }
+
+  const reactivar = async () => {
+    const actualizada = await reactivarSolicitud(solicitud.id)
+    if (actualizada) mostrarToast(`${solicitud.id} quedó activa otra vez.`)
   }
 
   return (
@@ -115,7 +144,7 @@ export default function AdminSolicitudDetalle() {
               {solicitud.id} <span className="font-semibold text-slate-400">· {solicitud.data.identificacion.cliente}</span>
             </h1>
             <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
-              <Badge estado={solicitud.estado} />
+              <Badge estado={solicitud.estado} cancelada={!!solicitud.gestion?.cancelacion} />
               {!estaFinalizada(solicitud.estado) && <ChipPrioridad prioridad={prioridad} motivo={motivos.join(' · ')} />}
               <ChipProblema solicitud={solicitud} />
             </div>
@@ -124,12 +153,68 @@ export default function AdminSolicitudDetalle() {
               {motivos.length > 0 && !estaFinalizada(solicitud.estado) && <> · {motivos.join(' · ')}</>}
             </p>
           </div>
-          {!estaFinalizada(solicitud.estado) && (
-            <Button icon={<FastForward size={16} />} onClick={avanzar}>
-              {siguiente.larga}
-            </Button>
+          {!estaFinalizada(solicitud.estado) && !cancelacion && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button icon={<FastForward size={16} />} onClick={avanzar}>
+                {siguiente.larga}
+              </Button>
+              <button
+                onClick={() => setMostrarFormCancelar((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+              >
+                <Ban size={16} /> Cancelar
+              </button>
+            </div>
           )}
         </div>
+
+        {cancelacion && (
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle size={17} className="mt-0.5 shrink-0 text-red-500" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">Solicitud cancelada</p>
+                <p className="mt-0.5 text-sm text-red-700">{cancelacion.motivo}</p>
+                <p className="mt-1 text-xs text-red-500">
+                  {cancelacion.autor} · {fechaConHora(cancelacion.fecha)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={reactivar}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-red-700 ring-1 ring-inset ring-red-300 hover:bg-red-100"
+            >
+              <RotateCcw size={13} /> Reabrir
+            </button>
+          </div>
+        )}
+
+        {mostrarFormCancelar && !cancelacion && (
+          <form onSubmit={cancelar} className="mt-4 flex flex-col gap-2.5 rounded-xl border border-dashed border-red-200 bg-red-50/50 p-4">
+            <label>
+              <span className="text-xs font-semibold tracking-wide text-red-700 uppercase">¿Por qué se cancela?</span>
+              <textarea
+                value={motivoCancelacion}
+                onChange={(e) => setMotivoCancelacion(e.target.value)}
+                placeholder="El cliente no respondió, no aplica para Pintuco, se resolvió por fuera…"
+                className={`${controlClass(false)} mt-1.5 min-h-16 resize-y`}
+                autoFocus
+              />
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={!motivoCancelacion.trim() || cancelando}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cancelando ? 'Cancelando…' : 'Confirmar cancelación'}
+              </button>
+              <button type="button" onClick={() => setMostrarFormCancelar(false)} className="text-xs font-semibold text-slate-500 hover:underline">
+                Descartar
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-3">
@@ -155,9 +240,9 @@ export default function AdminSolicitudDetalle() {
                 ))}
               </select>
             </label>
-            {usuario && !esMia && (
+            {!esMia && (
               <button
-                onClick={() => asignar(usuario.nombre)}
+                onClick={() => asignar(identidad)}
                 className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-50 py-2 text-sm font-semibold text-primary hover:bg-brand-100"
               >
                 <UserCheck size={15} /> Tomar esta solicitud

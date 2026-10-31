@@ -66,6 +66,23 @@ describe('solicitudesRepository: dueño, diagnóstico y gestión del equipo', ()
     expect(await solicitudesRepository.agregarNota('CL-NO-EXISTE', 'Camila Vargas', 'hola')).toBeUndefined()
   })
 
+  it('cancela una solicitud con motivo y autor, y la reactiva sin perder el estado', async () => {
+    const { id, estado } = await solicitudesRepository.crear(formData())
+    const cancelada = await solicitudesRepository.cancelar(id, 'Camila Vargas', '  El cliente no respondió.  ')
+    expect(cancelada?.gestion?.cancelacion?.motivo).toBe('El cliente no respondió.')
+    expect(cancelada?.gestion?.cancelacion?.autor).toBe('Camila Vargas')
+    expect(cancelada?.estado).toBe(estado)
+
+    const reactivada = await solicitudesRepository.reactivar(id)
+    expect(reactivada?.gestion?.cancelacion).toBeUndefined()
+    expect(reactivada?.estado).toBe(estado)
+  })
+
+  it('cancelar y reactivar devuelven undefined si la solicitud no existe', async () => {
+    expect(await solicitudesRepository.cancelar('CL-NO-EXISTE', 'Camila Vargas', 'motivo')).toBeUndefined()
+    expect(await solicitudesRepository.reactivar('CL-NO-EXISTE')).toBeUndefined()
+  })
+
   it('las solicitudes de ejemplo tienen dueño, diagnóstico y gestión, en varias etapas', async () => {
     const lista = await solicitudesRepository.listar()
     expect(lista.length).toBeGreaterThanOrEqual(6)

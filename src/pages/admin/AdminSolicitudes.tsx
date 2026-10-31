@@ -1,17 +1,19 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { FastForward, Inbox, LayoutGrid, Search, Table2, X } from 'lucide-react'
+import { Download, FastForward, Inbox, LayoutGrid, Search, Table2, UserCheck, X } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Badge from '@/shared/ui/Badge'
 import { SkeletonCardList } from '@/shared/ui/Skeleton'
 import { ESTILO_ESTADO } from '@/shared/ui/estadoEstilos'
 import { controlClass } from '@/shared/ui/FormField'
 import { fechaCorta } from '@/shared/lib/formato'
+import { descargarCSV } from '@/shared/lib/csv'
 import { useToast } from '@/shared/lib/toast'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
+import { useContextoAdmin } from '@/features/admin/ContextoAdmin'
 import { Asignado, ChipPrioridad, ChipProblema, Miniatura } from '@/features/admin/componentes'
+import { useEquipo } from '@/data/repositories/equipoRepository'
 import { estaFinalizada, etiquetaSiguienteAccion } from '@/domain/solicitud/estadoMachine'
-import { EQUIPO } from '@/domain/solicitud/equipo'
 import {
   evaluarPrioridad,
   filtrarSolicitudes,
@@ -36,12 +38,20 @@ function TarjetaKanban({ s, hoy, onAvanzar }: { s: Solicitud; hoy: Date; onAvanz
   const { prioridad, motivos } = evaluarPrioridad(s, hoy)
   const siguiente = etiquetaSiguienteAccion(s.estado)
   return (
-    <article className="flex flex-col gap-2.5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-soft">
+    <article
+      className={`flex flex-col gap-2.5 rounded-lg border p-3 shadow-sm transition-shadow hover:shadow-soft ${
+        s.gestion?.cancelacion ? 'border-red-200 bg-red-50/40' : 'border-slate-200 bg-white'
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
         <Link to={`/admin/solicitudes/${s.id}`} className="text-sm font-bold text-navy hover:text-primary">
           {s.id}
         </Link>
-        {!estaFinalizada(s.estado) && <ChipPrioridad prioridad={prioridad} motivo={motivos.join(' · ')} />}
+        {s.gestion?.cancelacion ? (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">Cancelada</span>
+        ) : (
+          !estaFinalizada(s.estado) && <ChipPrioridad prioridad={prioridad} motivo={motivos.join(' · ')} />
+        )}
       </div>
       <div className="flex items-center gap-2.5">
         <Miniatura solicitud={s} className="h-11 w-11" />
@@ -59,7 +69,7 @@ function TarjetaKanban({ s, hoy, onAvanzar }: { s: Solicitud; hoy: Date; onAvanz
           Para el {fechaCorta(s.data.proyecto.fechaRequerida)}
         </span>
       </div>
-      {!estaFinalizada(s.estado) && (
+      {!estaFinalizada(s.estado) && !s.gestion?.cancelacion && (
         <button
           onClick={() => onAvanzar(s.id)}
           title={siguiente.larga}
@@ -75,9 +85,12 @@ function TarjetaKanban({ s, hoy, onAvanzar }: { s: Solicitud; hoy: Date; onAvanz
 export default function AdminSolicitudes() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { solicitudes, cargando, avanzarEstadoSolicitud } = useSolicitudes()
+  const { solicitudes, cargando, avanzarEstadoSolicitud, asignarSolicitud } = useSolicitudes()
   const { mostrarToast } = useToast()
+  const { identidad } = useContextoAdmin()
+  const { equipo } = useEquipo()
   const hoy = useMemo(() => new Date(), [])
+  const [seleccionados, setSeleccionados] = useState<string[]>([])
 
   const filtros: FiltrosSolicitud = {
     texto: params.get('texto') ?? '',
@@ -109,6 +122,54 @@ export default function AdminSolicitudes() {
     if (actualizada) mostrarToast(`${id} avanzó a "${actualizada.estado}".`)
   }
 
+  const alternarSeleccion = (id: string) => {
+    setSeleccionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  const seleccionablesVisibles = visibles.filter((s) => !estaFinalizada(s.estado) && !s.gestion?.cancelacion)
+  const todoSeleccionado = seleccionablesVisibles.length > 0 && seleccionablesVisibles.every((s) => seleccionados.includes(s.id))
+
+  const alternarSeleccionTodas = () => {
+    setSeleccionados(todoSeleccionado ? [] : seleccionablesVisibles.map((s) => s.id))
+  }
+
+  const avanzarSeleccionadas = async () => {
+    const ids = [...seleccionados]
+    setSeleccionados([])
+    const resultados = await Promise.all(ids.map((id) => avanzarEstadoSolicitud(id)))
+    const avanzadas = resultados.filter(Boolean).length
+    mostrarToast(`${avanzadas} ${avanzadas === 1 ? 'solicitud avanzó' : 'solicitudes avanzaron'} de etapa.`)
+  }
+
+  const asignarSeleccionadas = async (responsable: string) => {
+    const ids = [...seleccionados]
+    setSeleccionados([])
+    await Promise.all(ids.map((id) => asignarSolicitud(id, responsable || undefined)))
+    const singular = ids.length === 1
+    const sujeto = `${ids.length} ${singular ? 'solicitud' : 'solicitudes'}`
+    const verbo = singular ? 'quedó' : 'quedaron'
+    mostrarToast(responsable ? `${sujeto} ${verbo} con ${responsable}.` : `${sujeto} ${verbo} sin asignar.`)
+  }
+
+  const exportar = () => {
+    descargarCSV(
+      'solicitudes-colorlink',
+      ['ID', 'Cliente', 'Ciudad', 'Tipo de obra', 'Estado', 'Problema', 'Asignado a', 'Cancelada', 'Fecha requerida', 'Fecha de solicitud'],
+      visibles.map((s) => [
+        s.id,
+        s.data.identificacion.cliente,
+        s.data.proyecto.ciudad,
+        s.data.proyecto.tipoObra,
+        s.estado,
+        s.diagnostico?.patologia ?? '',
+        s.gestion?.asignadoA ?? '',
+        s.gestion?.cancelacion ? 'Sí' : 'No',
+        s.data.proyecto.fechaRequerida,
+        s.fechaSolicitud,
+      ]),
+    )
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -120,24 +181,32 @@ export default function AdminSolicitudes() {
               : `${visibles.length} de ${solicitudes.length} solicitudes`}
           </p>
         </div>
-        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm" role="group" aria-label="Vista">
-          {(
-            [
-              ['tablero', 'Tablero', LayoutGrid],
-              ['tabla', 'Tabla', Table2],
-            ] as const
-          ).map(([valor, etiqueta, Icono]) => (
-            <button
-              key={valor}
-              onClick={() => cambiar('vista', valor === 'tablero' ? '' : valor)}
-              aria-pressed={vista === valor}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
-                vista === valor ? 'bg-navy text-white' : 'text-body hover:bg-slate-100'
-              }`}
-            >
-              <Icono size={15} /> {etiqueta}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportar}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-navy hover:border-primary hover:text-primary"
+          >
+            <Download size={15} /> Exportar CSV
+          </button>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm" role="group" aria-label="Vista">
+            {(
+              [
+                ['tablero', 'Tablero', LayoutGrid],
+                ['tabla', 'Tabla', Table2],
+              ] as const
+            ).map(([valor, etiqueta, Icono]) => (
+              <button
+                key={valor}
+                onClick={() => cambiar('vista', valor === 'tablero' ? '' : valor)}
+                aria-pressed={vista === valor}
+                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  vista === valor ? 'bg-navy text-white' : 'text-body hover:bg-slate-100'
+                }`}
+              >
+                <Icono size={15} /> {etiqueta}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -159,7 +228,7 @@ export default function AdminSolicitudes() {
               ['estado', 'Estado', 'Todos los estados', ORDEN_ESTADOS.map((e) => [e, e])],
               ['problema', 'Problema', 'Todos los problemas', PROBLEMAS.map((p) => [p, p])],
               ['prioridad', 'Prioridad', 'Toda prioridad', PRIORIDADES.map((p) => [p, p])],
-              ['asignado', 'Asignado a', 'Todo el equipo', [['sin-asignar', 'Sin asignar'], ...EQUIPO.map((m) => [m.nombre, m.nombre])]],
+              ['asignado', 'Asignado a', 'Todo el equipo', [['sin-asignar', 'Sin asignar'], ...equipo.map((m) => [m.nombre, m.nombre] as const)]],
             ] as const
           ).map(([clave, etiqueta, todos, opciones]) => (
             <label key={clave}>
@@ -216,25 +285,84 @@ export default function AdminSolicitudes() {
           </div>
         </div>
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                  <th className="px-4 py-3">Solicitud</th>
-                  <th className="px-4 py-3">Problema</th>
-                  <th className="px-4 py-3">Prioridad</th>
-                  <th className="px-4 py-3">Asignado a</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Para el</th>
-                  <th className="px-4 py-3 text-right">Acciones</th>
-                </tr>
+        <>
+          {seleccionados.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+              <span className="text-sm font-bold text-navy">
+                {seleccionados.length} {seleccionados.length === 1 ? 'seleccionada' : 'seleccionadas'}
+              </span>
+              <button
+                onClick={avanzarSeleccionadas}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-primary ring-1 ring-inset ring-brand-200 hover:bg-brand-100"
+              >
+                <FastForward size={13} /> Avanzar
+              </button>
+              <button
+                onClick={() => asignarSeleccionadas(identidad)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-primary ring-1 ring-inset ring-brand-200 hover:bg-brand-100"
+              >
+                <UserCheck size={13} /> Tomar todas
+              </button>
+              <select
+                aria-label="Asignar seleccionadas a"
+                defaultValue=""
+                onChange={(e) => e.target.value && asignarSeleccionadas(e.target.value)}
+                className="rounded-lg border-0 bg-white px-3 py-1.5 text-xs font-bold text-navy ring-1 ring-inset ring-brand-200"
+              >
+                <option value="" disabled>
+                  Asignar a…
+                </option>
+                {equipo.map((m) => (
+                  <option key={m.nombre} value={m.nombre}>
+                    {m.nombre}
+                  </option>
+                ))}
+              </select>
+              <button onClick={() => setSeleccionados([])} className="ml-auto text-xs font-semibold text-slate-500 hover:underline">
+                Cancelar selección
+              </button>
+            </div>
+          )}
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[940px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                    <th className="w-10 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label="Seleccionar todas"
+                        checked={todoSeleccionado}
+                        onChange={alternarSeleccionTodas}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                    </th>
+                    <th className="px-4 py-3">Solicitud</th>
+                    <th className="px-4 py-3">Problema</th>
+                    <th className="px-4 py-3">Prioridad</th>
+                    <th className="px-4 py-3">Asignado a</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Para el</th>
+                    <th className="px-4 py-3 text-right">Acciones</th>
+                  </tr>
               </thead>
               <tbody>
                 {visibles.map((s) => {
                   const { prioridad, motivos } = evaluarPrioridad(s, hoy)
+                  const seleccionable = !estaFinalizada(s.estado) && !s.gestion?.cancelacion
                   return (
                     <tr key={s.id} className="border-b border-slate-100 last:border-0 hover:bg-brand-50/40">
+                      <td className="px-4 py-3">
+                        {seleccionable && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Seleccionar ${s.id}`}
+                            checked={seleccionados.includes(s.id)}
+                            onChange={() => alternarSeleccion(s.id)}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Miniatura solicitud={s} className="h-10 w-10" />
@@ -256,12 +384,12 @@ export default function AdminSolicitudes() {
                         <Asignado nombre={s.gestion?.asignadoA} />
                       </td>
                       <td className="px-4 py-3">
-                        <Badge estado={s.estado} />
+                        <Badge estado={s.estado} cancelada={!!s.gestion?.cancelacion} />
                       </td>
                       <td className="px-4 py-3 text-body">{fechaCorta(s.data.proyecto.fechaRequerida)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-3">
-                          {!estaFinalizada(s.estado) && (
+                          {!estaFinalizada(s.estado) && !s.gestion?.cancelacion && (
                             <button
                               onClick={() => avanzar(s.id)}
                               title={etiquetaSiguienteAccion(s.estado).larga}
@@ -282,6 +410,7 @@ export default function AdminSolicitudes() {
             </table>
           </div>
         </Card>
+        </>
       )}
     </div>
   )

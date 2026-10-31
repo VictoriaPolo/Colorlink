@@ -109,7 +109,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const confirmarPedido = async (clienteNombre: string, clienteEmail: string): Promise<Pedido> => {
-    const pedido = await tiendaRepository.crearPedido(items, clienteNombre, clienteEmail)
+    const pedido = await tiendaRepository.crearPedido(items, clienteNombre, clienteEmail, puntoRetiro.nombre)
     vaciarCarrito()
     return pedido
   }

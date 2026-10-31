@@ -1,6 +1,7 @@
 import type {
   Ambiente,
   CanalEntrada,
+  Cancelacion,
   ColorAcabado,
   CondicionActual,
   DiagnosticoImagen,
@@ -171,6 +172,7 @@ interface ExtrasRow {
   diagnostico: DiagnosticoImagen | null
   asignado_a: string | null
   notas: NotaInterna[] | null
+  cancelacion: Cancelacion | null
 }
 
 const FALTA_EXTRAS =
@@ -190,7 +192,7 @@ function conExtras(solicitud: Solicitud, extras: ExtrasRow | undefined): Solicit
     ...solicitud,
     propietario: extras.usuario_email ?? undefined,
     diagnostico: extras.diagnostico ?? undefined,
-    gestion: { asignadoA: extras.asignado_a ?? undefined, notas: extras.notas ?? [] },
+    gestion: { asignadoA: extras.asignado_a ?? undefined, notas: extras.notas ?? [], cancelacion: extras.cancelacion ?? undefined },
   }
 }
 
@@ -371,6 +373,19 @@ export const solicitudesRepositorySupabase: SolicitudesRepository = {
     if (!actual) return undefined
     const nota: NotaInterna = { id: `${id}-n${Date.now()}`, autor, texto: texto.trim(), fecha: new Date().toISOString() }
     await guardarExtras(id, { notas: [...(actual.gestion?.notas ?? []), nota] })
+    return obtenerPorId(id)
+  },
+
+  async cancelar(id, autor, motivo) {
+    if (!(await obtenerPorId(id))) return undefined
+    const cancelacion: Cancelacion = { motivo: motivo.trim(), autor, fecha: new Date().toISOString() }
+    await guardarExtras(id, { cancelacion })
+    return obtenerPorId(id)
+  },
+
+  async reactivar(id) {
+    if (!(await obtenerPorId(id))) return undefined
+    await guardarExtras(id, { cancelacion: null })
     return obtenerPorId(id)
   },
 }

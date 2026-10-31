@@ -60,11 +60,11 @@ export default function SolicitudesTable({
                 <td className="px-5 py-4 text-body">{s.data.proyecto.ciudad || '—'}</td>
                 <td className="px-5 py-4 text-body">{s.fechaSolicitud}</td>
                 <td className="px-5 py-4">
-                  <Badge estado={s.estado} />
+                  <Badge estado={s.estado} cancelada={!!s.gestion?.cancelacion} />
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center justify-end gap-3">
-                    {onAvanzar && !estaFinalizada(s.estado) && (
+                    {onAvanzar && !estaFinalizada(s.estado) && !s.gestion?.cancelacion && (
                       <button
                         onClick={() => onAvanzar(s.id)}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-sky hover:underline"

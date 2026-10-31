@@ -37,8 +37,14 @@ create table pedidos (
   items jsonb not null,
   total numeric not null,
   estado text not null default 'Recibido',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  punto_retiro text,
+  notas jsonb not null default '[]'::jsonb
 );
+
+-- Por si la tabla ya existía de una corrida anterior del script.
+alter table pedidos add column if not exists punto_retiro text;
+alter table pedidos add column if not exists notas jsonb not null default '[]'::jsonb;
 
 -- ponytail: RLS abierta a "anon" por la misma razón que en schema.sql (no hay
 -- Supabase Auth todavía) -- subir el nivel si esto deja de ser un prototipo.

@@ -18,4 +18,8 @@ export interface SolicitudesRepository {
   asignar(id: string, responsable: string | undefined): Promise<Solicitud | undefined>
   /** Equipo: nota interna que el cliente no ve. */
   agregarNota(id: string, autor: string, texto: string): Promise<Solicitud | undefined>
+  /** Equipo: cierra el caso sin avanzarlo más (el cliente no respondió, no aplica, etc.). */
+  cancelar(id: string, autor: string, motivo: string): Promise<Solicitud | undefined>
+  /** Equipo: deshace una cancelación, por si se marcó por error. */
+  reactivar(id: string): Promise<Solicitud | undefined>
 }
