@@ -6,10 +6,13 @@ export interface DatosRegistro {
   password: string
 }
 
-/** Cuenta con la que se entra con Google/Facebook cuando no hay proveedor real (modo demostración). */
-export interface IdentidadDemo {
+/** Cuenta con la que se entra con Google/Facebook: la que elige la persona en la ventana del
+ * proveedor o, en modo demostración, la que escribe. */
+export interface IdentidadSocial {
   nombre: string
   email: string
+  /** Foto de perfil que entrega el proveedor. */
+  avatarUrl?: string
 }
 
 export type ProveedorSocial = Exclude<ProveedorAuth, 'correo'>
@@ -22,12 +25,12 @@ export type ResultadoAuth =
 
 /** Contrato común entre el acceso local (demostración) y Supabase Auth. */
 export interface AuthRepository {
-  /** true si Google/Facebook son reales (Supabase Auth); false en el modo demostración local. */
+  /** true si Google/Facebook entran por Supabase Auth (redirección); false si usan la ventana del proveedor o el modo demostración. */
   readonly proveedoresReales: boolean
   restaurarSesion(): Promise<Usuario | null>
   iniciarSesion(email: string, password: string): Promise<ResultadoAuth>
   registrar(datos: DatosRegistro): Promise<ResultadoAuth>
-  iniciarConProveedor(proveedor: ProveedorSocial, identidadDemo?: IdentidadDemo): Promise<ResultadoAuth>
+  iniciarConProveedor(proveedor: ProveedorSocial, identidad?: IdentidadSocial): Promise<ResultadoAuth>
   cerrarSesion(): Promise<void>
   /** Solo Supabase: avisa cuando la sesión cambia fuera de la app (volver de Google, sesión vencida). */
   alCambiarSesion?(callback: (usuario: Usuario | null) => void): () => void

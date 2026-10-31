@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Loader2, Mic, MicOff, PhoneOff } from 'lucide-react'
+import { AlertTriangle, Hand, Loader2, Mic, MicOff, PhoneOff, SlidersHorizontal } from 'lucide-react'
 import type { ContextoChat } from '@/domain/chat/asistenteVirtual'
 import { iniciarLlamada, type ControlLlamada, type EstadoLlamada, type TurnoLlamada } from './llamada'
 import { MENSAJE_MICROFONO_BLOQUEADO, MOTIVO_SIN_VOZ, microfonoBloqueado } from './voz'
 import AvatarColi from './AvatarColi'
+import AjustesVoz from './AjustesVoz'
 
 const ETIQUETA: Record<EstadoLlamada, string> = {
   conectando: 'Conectando…',
@@ -37,6 +38,7 @@ export default function LlamadaColi({ contexto, onCerrar }: Props) {
   const [escuchado, setEscuchado] = useState('')
   const [aviso, setAviso] = useState('')
   const [silenciado, setSilenciado] = useState(false)
+  const [ajustes, setAjustes] = useState(false)
 
   useEffect(() => {
     if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
@@ -105,7 +107,19 @@ export default function LlamadaColi({ contexto, onCerrar }: Props) {
       aria-label="Llamada con Coli"
       className="m-auto w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-3xl bg-white p-0 text-body shadow-soft-lg backdrop:bg-navy/80 backdrop:backdrop-blur-sm"
     >
-      <div className="flex flex-col items-center bg-gradient-to-b from-brand-50 to-white px-6 pt-8 pb-5">
+      <div className="relative flex flex-col items-center bg-gradient-to-b from-brand-50 to-white px-6 pt-8 pb-5">
+        <button
+          type="button"
+          onClick={() => setAjustes((abierto) => !abierto)}
+          aria-label="Ajustes de voz"
+          aria-expanded={ajustes}
+          title="Voz de Coli"
+          className={`absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+            ajustes ? 'bg-primary text-white' : 'text-slate-500 hover:bg-white hover:text-navy'
+          }`}
+        >
+          <SlidersHorizontal size={18} />
+        </button>
         <AvatarColi estado={estado} nivel={estado === 'hablando' ? nivelVoz : nivelMicro} />
         <h2 className="mt-3 text-xl font-extrabold tracking-tight text-navy">Coli</h2>
         <p className="text-xs text-slate-500">Asistente de color y obra · COLORLINK</p>
@@ -124,12 +138,24 @@ export default function LlamadaColi({ contexto, onCerrar }: Props) {
           </span>
           {segundos > 0 && <span className="font-mono text-xs text-slate-400 tabular-nums">{formatoReloj(segundos)}</span>}
         </div>
+        {estado === 'hablando' && (
+          <button
+            type="button"
+            onClick={() => controlRef.current?.interrumpir()}
+            className="mt-2.5 flex items-center gap-1.5 rounded-full border border-primary/30 bg-white px-3 py-1 text-xs font-bold text-primary transition-colors hover:bg-brand-50"
+          >
+            <Hand size={13} />
+            Interrumpir
+          </button>
+        )}
         {estado === 'escuchando' && escuchado && (
           <p className="mt-2 max-w-full truncate text-xs text-slate-500 italic" aria-live="polite">
             “{escuchado}”
           </p>
         )}
       </div>
+
+      {ajustes && <AjustesVoz />}
 
       {aviso && (
         <div className="mx-5 mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800">

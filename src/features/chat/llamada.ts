@@ -1,5 +1,6 @@
-import { generarRespuestaChat, type ContextoChat, type RespuestaChat } from '@/domain/chat/asistenteVirtual'
-import { MENSAJES_ERROR_VOZ, ReconocedorNativo, crearFrase, type Reconocedor } from './voz'
+import { generarRespuestaChat, saludoSegunHora, type ContextoChat, type RespuestaChat } from '@/domain/chat/asistenteVirtual'
+import { hablarTexto, type HablaEnCurso } from './sintesis'
+import { MENSAJES_ERROR_VOZ, ReconocedorNativo, type Reconocedor } from './voz'
 
 export type EstadoLlamada = 'conectando' | 'escuchando' | 'pensando' | 'hablando' | 'finalizada' | 'error'
 
@@ -12,6 +13,8 @@ export interface TurnoLlamada {
 
 export interface ControlLlamada {
   colgar: () => void
+  /** Corta lo que Coli está diciendo y pasa a escuchar. */
+  interrumpir: () => void
   silenciar: (silenciado: boolean) => void
 }
 
@@ -55,6 +58,8 @@ export function iniciarLlamada(op: OpcionesLlamada): ControlLlamada {
   let silenciada = false
   let hablando = false
   let reconocedor: Reconocedor | null = null
+  let vozActual: HablaEnCurso | null = null
+  let cortarVoz: (() => void) | null = null
   let boca: number | undefined
   let actividad: number | undefined
   let pausa: number | undefined
@@ -81,7 +86,7 @@ export function iniciarLlamada(op: OpcionesLlamada): ControlLlamada {
     window.clearTimeout(pausa)
     reconocedor?.abort()
     // Solo calla la voz si la que suena es la de esta llamada.
-    if (hablando) window.speechSynthesis.cancel()
+    if (hablando) vozActual?.cancelar()
     op.onEscuchando('')
     op.onNivelMicro(0)
     op.onNivelVoz(0)
@@ -91,23 +96,38 @@ export function iniciarLlamada(op: OpcionesLlamada): ControlLlamada {
   function decir(texto: string, despues: () => void) {
     op.onEstado('hablando')
     hablando = true
-    // La síntesis de voz no expone su volumen: la boca se anima mientras habla.
-    boca = window.setInterval(() => op.onNivelVoz(0.25 + Math.random() * 0.6), 110)
-    const frase = crearFrase(texto)
+    // La síntesis de voz no expone su volumen: la boca se anima mientras habla y, si la voz
+    // avisa cada palabra, sigue su ritmo (se cierra un poco entre palabras y entre frases).
+    let avisaPalabras = false
+    let ultimaPalabra = 0
+    boca = window.setInterval(() => {
+      const sonando = !avisaPalabras || Date.now() - ultimaPalabra < 280
+      op.onNivelVoz(sonando ? 0.3 + Math.random() * 0.6 : 0.05 + Math.random() * 0.1)
+    }, 110)
     // Chrome a veces no dispara `end` en frases largas: no dejar la llamada colgada.
     const respaldo = window.setTimeout(terminar, Math.max(5000, texto.split(/\s+/).length * 550))
     function terminar() {
       if (!hablando) return
       hablando = false
+      cortarVoz = null
       window.clearInterval(boca)
       window.clearTimeout(respaldo)
       op.onNivelVoz(0)
       // Pausa corta antes de escuchar, para no captar el final de la propia voz.
       if (activa) pausa = window.setTimeout(despues, 250)
     }
-    frase.onend = terminar
-    frase.onerror = terminar
-    window.speechSynthesis.speak(frase)
+    vozActual = hablarTexto(texto, {
+      resumir: true,
+      onPalabra: () => {
+        avisaPalabras = true
+        ultimaPalabra = Date.now()
+      },
+      onFin: terminar,
+    })
+    cortarVoz = () => {
+      vozActual?.cancelar()
+      terminar()
+    }
   }
 
   function escuchar() {
@@ -188,12 +208,13 @@ export function iniciarLlamada(op: OpcionesLlamada): ControlLlamada {
   }
 
   const nombre = op.contexto.nombreUsuario?.split(' ')[0]
-  const saludo = `Hola${nombre ? ` ${nombre}` : ''}, soy Coli, el asistente de COLORLINK. ¿En qué te ayudo con tu proyecto?`
+  const saludo = `${saludoSegunHora()}${nombre ? `, ${nombre}` : ''}. Soy Coli, tu asistente de COLORLINK. ¿En qué puedo ayudarte con tu proyecto?`
   op.onTurno({ autor: 'coli', texto: saludo })
   decir(saludo, escuchar)
 
   return {
     colgar: () => colgar(),
+    interrumpir: () => cortarVoz?.(),
     silenciar: (silenciado) => {
       silenciada = silenciado
       if (silenciado) reconocedor?.abort()

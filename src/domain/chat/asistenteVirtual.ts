@@ -55,7 +55,7 @@ const SUPERFICIES: { patron: RegExp; superficie: string; producto: string }[] = 
 
 const formatoCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })
 
-function saludoSegunHora(): string {
+export function saludoSegunHora(): string {
   const hora = new Date().getHours()
   if (hora < 12) return 'Buenos días'
   if (hora < 19) return 'Buenas tardes'
@@ -109,7 +109,7 @@ export function generarRespuestaChat(mensajeUsuario: string, contexto: ContextoC
     }
     const ultimo = pedidos[0]
     return {
-      texto: `Tu pedido ${ultimo.id} está "${ultimo.estado}": ${ultimo.items.length} producto(s) por un total de ${formatoCOP.format(ultimo.total)}, del ${ultimo.fecha}. Queda listo para retirar en tu tienda 2 horas después de confirmado.`,
+      texto: `Tu pedido ${ultimo.id} está "${ultimo.estado}": ${ultimo.items.length} ${ultimo.items.length === 1 ? 'producto' : 'productos'} por un total de ${formatoCOP.format(ultimo.total)}, del ${ultimo.fecha}. Queda listo para retirar en tu tienda 2 horas después de confirmado.`,
       ruta: '/mis-solicitudes',
       etiquetaRuta: 'Ver mis pedidos',
     }

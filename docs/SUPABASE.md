@@ -71,6 +71,10 @@ Con Supabase configurado, el inicio de sesión y el registro usan **Supabase Aut
 (sin Supabase, la app usa cuentas guardadas en el navegador, ver
 `docs/ARQUITECTURA.md`).
 
+> Sin Supabase, los botones de Google y Facebook también abren la ventana real de cada uno
+> (las cuentas quedan en el navegador): ver [`CUENTAS_SOCIALES.md`](CUENTAS_SOCIALES.md). Esta
+> sección es para cuando quieras cuentas compartidas entre dispositivos.
+
 **Correo y contraseña** funcionan sin más pasos. En **Authentication → Providers →
 Email** decide si exiges confirmar el correo: si lo exiges, después de registrarse
 la persona ve un aviso para revisar su bandeja y entra al confirmar.
