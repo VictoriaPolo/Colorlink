@@ -69,6 +69,21 @@ export default function ChatWidget() {
     setMensajes([{ id: idRef.current++, autor: 'bot', ...generarRespuestaChat('hola', { nombreUsuario: usuario.nombre }) }])
   }, [usuario?.email])
 
+  // Los pedidos cambian mientras el widget sigue montado (se paga uno nuevo, el equipo lo avanza):
+  // se vuelven a pedir cada vez que se abre el chat o la llamada, para que Coli responda con lo último.
+  const correoCliente = usuario?.rol === 'cliente' ? usuario.email : null
+  useEffect(() => {
+    if (!correoCliente || (!abierto && !enLlamada)) return
+    let vivo = true
+    tiendaRepository
+      .listarPedidosPorEmail(correoCliente)
+      .then((lista) => vivo && setPedidos(lista))
+      .catch(() => {})
+    return () => {
+      vivo = false
+    }
+  }, [correoCliente, abierto, enLlamada])
+
   useEffect(() => {
     finRef.current?.scrollIntoView({ block: 'end' })
   }, [mensajes, escribiendo])

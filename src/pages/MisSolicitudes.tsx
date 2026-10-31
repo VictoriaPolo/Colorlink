@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PlusCircle, Inbox, Search, LayoutGrid, Table2, ChevronRight, Package } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Button from '@/shared/ui/Button'
@@ -9,11 +9,10 @@ import { SkeletonCardList } from '@/shared/ui/Skeleton'
 import SolicitudesTable from '@/features/solicitudes/SolicitudesTable'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
 import { useAuth } from '@/features/auth/AuthContext'
+import TarjetaPedido from '@/features/pagos/TarjetaPedido'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 import type { EstadoSolicitud, Superficie } from '@/domain/solicitud/types'
 import type { Pedido } from '@/domain/tienda/types'
-
-const formatoCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })
 
 const ESTADOS: EstadoSolicitud[] = [
   'Recibida',
@@ -29,7 +28,10 @@ export default function MisSolicitudes() {
   const navigate = useNavigate()
   const { usuario } = useAuth()
   const { solicitudes, cargando } = useSolicitudes()
-  const [seccion, setSeccion] = useState<'solicitudes' | 'pedidos'>('solicitudes')
+  // La pestaña vive en la dirección (?seccion=pedidos): así el carrito, la cabecera y Coli pueden llevar directo a los pedidos.
+  const [parametros, setParametros] = useSearchParams()
+  const seccion: 'solicitudes' | 'pedidos' = parametros.get('seccion') === 'pedidos' ? 'pedidos' : 'solicitudes'
+  const setSeccion = (nueva: 'solicitudes' | 'pedidos') => setParametros(nueva === 'pedidos' ? { seccion: 'pedidos' } : {}, { replace: true })
   const [busqueda, setBusqueda] = useState('')
   const [superficie, setSuperficie] = useState<Superficie | 'Todas'>('Todas')
   const [estado, setEstado] = useState<EstadoSolicitud | 'Todos'>('Todos')
@@ -39,10 +41,20 @@ export default function MisSolicitudes() {
 
   useEffect(() => {
     if (!usuario) return
-    tiendaRepository.listarPedidosPorEmail(usuario.email).then((data) => {
-      setPedidos(data)
-      setCargandoPedidos(false)
-    })
+    let vivo = true
+    const cargar = () =>
+      tiendaRepository
+        .listarPedidosPorEmail(usuario.email)
+        .then((data) => vivo && setPedidos(data))
+        .catch(() => {})
+        .finally(() => vivo && setCargandoPedidos(false))
+    void cargar()
+    // Si el equipo avanzó un pedido mientras la persona estaba en otra ventana, lo ve al volver.
+    window.addEventListener('focus', cargar)
+    return () => {
+      vivo = false
+      window.removeEventListener('focus', cargar)
+    }
   }, [usuario])
 
   const filtradas = useMemo(() => {
@@ -100,6 +112,7 @@ export default function MisSolicitudes() {
           }`}
         >
           Pedidos de la tienda
+          {pedidos.length > 0 && <span className="ml-1.5 rounded-full bg-brand-100 px-2 py-0.5 text-[11px] font-bold text-primary">{pedidos.length}</span>}
         </button>
       </div>
 
@@ -115,18 +128,7 @@ export default function MisSolicitudes() {
         ) : (
           <div className="space-y-3">
             {pedidos.map((p) => (
-              <Card key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
-                <div>
-                  <p className="font-bold text-navy">{p.id}</p>
-                  <p className="text-xs text-slate-400">
-                    {p.fecha} · {p.items.length} producto{p.items.length === 1 ? '' : 's'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-body">{p.estado}</span>
-                  <p className="text-lg font-extrabold text-primary">{formatoCOP.format(p.total)}</p>
-                </div>
-              </Card>
+              <TarjetaPedido key={p.id} pedido={p} />
             ))}
           </div>
         )

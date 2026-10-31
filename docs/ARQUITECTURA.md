@@ -44,6 +44,8 @@ src/
     admin/        Piezas de la consola: tarjetas de indicadores, chips de prioridad y problema
     tienda/       Carrito (CartContext), tarjeta de producto, ventana de compra, selector de
                   kits, buscador con sugerencias
+    pagos/        Pago de práctica (tarjeta, PSE, Nequi o al retirar), cupón, resumen del
+                  pedido, rastreo con su historial y el comprobante en PDF
     chat/         Widget del asistente virtual "Coli" (solo clientes): dictado por voz,
                   respuestas leídas en voz alta y llamada de voz manos libres con avatar
                   animado (Web Speech API, sin librerías ni proveedor externo); la voz se
@@ -58,6 +60,9 @@ src/
                   reglas que lo combinan con lo que cuenta el cliente
     tienda/       Tipos de la tienda (Producto, Kit, Pedido), calculadora de pintura,
                   precios por presentación y búsqueda en el catálogo
+    pagos/        La pasarela de práctica (qué responde según el medio y la tarjeta de prueba),
+                  la tarjeta (Luhn, marca, formato), cupones y totales con el IVA que ya
+                  trae el precio
     chat/         Respuestas del asistente con los datos del cliente (pedidos, solicitudes,
                   catálogo) por palabras clave; solo atiende temas de la
                   tienda y rechaza lo demás (fútbol, política, etc.)
@@ -72,7 +77,8 @@ src/
     ui/           Componentes de interfaz reutilizables (Button, Card, Badge, Toaster...)
     brand/        Logo, franja de colores y abanico de muestras: la firma visual del proyecto
     layout/       Header y Footer de la tienda
-    lib/          Utilidades transversales (toasts, formato de pesos y fechas)
+    lib/          Utilidades transversales (toasts, formato de pesos y fechas, `pdf.ts` para
+                  armar documentos en PDF)
 ```
 
 **Regla de dependencia:** `domain/` no importa de `features/` ni de `pages/` — es lógica
@@ -206,8 +212,17 @@ móvil, una barra superior con la navegación deslizable):
 - **Detalle**: diagnóstico y fotos, datos del cliente y del proyecto, recomendación, quién
   atiende (con "tomar esta solicitud"), las etapas con sus fechas, el avance de estado y
   las notas internas (solo el equipo las ve).
-- **Pedidos**: los pedidos de la tienda, con filtro por estado y cambio de estado.
+- **Pedidos**: los pedidos de la tienda, con filtro por estado, cambio de estado y cómo va
+  el pago de cada uno (Pagado / Por cobrar). Se busca también por código de retiro o por
+  la referencia del pago (lo que el cliente dicta en la tienda) y hay un indicador y un
+  filtro de "Por cobrar". En el detalle el equipo ve el código de retiro, cobra un pedido
+  que se paga al retirar o registra un reembolso; si un pedido se entregó sin cobrarse, o
+  se canceló estando pagado, la consola lo avisa.
 - **Clientes**: quién pidió y quién compró, juntos por correo.
+
+Sin base de datos compartida (todo en el navegador) la consola avisa en una franja que solo
+ve lo que se guardó en ese navegador (`features/admin/AvisoModoLocal.tsx`): las solicitudes
+y pedidos de otras personas, hechos desde otros equipos, no llegan hasta conectar Supabase.
 
 La **prioridad** (`domain/solicitud/panel.ts`) sale de lo que muestra la foto (daño severo o
 moderado) y de la fecha en que el cliente necesita la obra (vencida, a 7 días o a 21), y
@@ -226,10 +241,10 @@ van en una tabla propia (`extras_solicitud`) para no tocar el esquema original.
 
 `tiendaRepository` sigue exactamente el mismo patrón que `solicitudesRepository`
 (`.types.ts` / `.local.ts` / `.supabase.ts`, elegido según haya o no credenciales de
-Supabase) para `productos`, `kits` (`supabase/schema_tienda.sql`) y `pedidos` (captura de
-pedido, sin pasarela de pagos real — `CartContext` guarda el carrito en localStorage y al
-confirmar llama a `crearPedido`). El equipo además lista todos los pedidos y cambia su
-estado. Los 8 productos y las 4 patologías de kit reusan exactamente los mismos nombres de
+Supabase) para `productos`, `kits` (`supabase/schema_tienda.sql`) y `pedidos`
+(`CartContext` guarda el carrito y el cupón en localStorage y, al pagar, llama a
+`crearPedido` con el pago). El equipo además lista todos los pedidos, cambia su estado y
+cobra o reembolsa su pago (`actualizarPagoPedido`). Los 8 productos y las 4 patologías de kit reusan exactamente los mismos nombres de
 producto que devuelven el motor de recomendación y el diagnóstico (ej. "Koraza 5 Años" para
 exteriores, "Aquablock Fibratado" para humedad) — el asistente, el diagnóstico y el
 catálogo hablan siempre del mismo producto.
@@ -240,6 +255,48 @@ guarda presentación y color en su nombre (ej. "Koraza 5 Años Protección Total
 galones (18.9 L) · Verde Salvia (PNT-401)"), así el pedido dice exactamente qué preparar
 sin cambiar el esquema de `pedidos`. El punto de retiro elegido también vive en
 `CartContext` (localStorage) y se muestra en el encabezado, el panel y el carrito.
+
+### Pago de práctica
+
+El recorrido es `/carrito` (con cupón) → `/pagar` → `/pedidos/:id`. `domain/pagos/pasarela.ts` es
+una pasarela **de práctica**: no habla con ningún banco, decide el resultado según el medio y,
+con tarjeta, según la tarjeta de prueba (la misma lista que usan los entornos de prueba de las
+pasarelas conocidas: una se aprueba y otras la rechaza el banco, no tiene fondos o falla el
+código). Una tarjeta real, aunque sea válida, se rechaza a propósito: nadie debe escribir aquí
+los datos de una tarjeta de verdad.
+
+| Medio | Cómo termina |
+|---|---|
+| Tarjeta | Resultado según la tarjeta de prueba (formulario con tarjeta que se voltea al escribir el código) |
+| PSE | Pantalla de banco simulada: se autoriza o se cancela |
+| Nequi | Notificación simulada con cuenta regresiva: se aprueba, se rechaza o vence |
+| Al retirar | El pedido se crea con el pago **pendiente** hasta que la tienda lo cobre |
+
+Solo un pago aprobado (o pendiente, al retirar) crea el pedido; un rechazo vuelve al formulario con
+el motivo y el carrito intacto. **Del pago solo se guarda** la marca, los últimos cuatro dígitos
+(`Visa ···· 4242`), la referencia (`PAY-XXXXXXXX`), el monto y el estado: nunca el número completo,
+el código de seguridad ni el celular completo (hay pruebas que lo comprueban). Los cupones son
+`BIENVENIDA10`, `COLOR5` y `RETIRO20` (`domain/pagos/cupones.ts`); el precio ya incluye el IVA
+(19 %) y el resumen solo lo desglosa (`domain/pagos/totales.ts`).
+
+### Rastreo del pedido
+
+Cada pedido guarda su `historial` (la hora en que pasó por cada etapa) y un `codigoRetiro` de seis
+caracteres sin letras que se confunden. `/pedidos/:id` muestra las cuatro etapas (recibido →
+preparación → listo para retiro → entregado) con su hora, la hora estimada (dos horas después de
+recibido), el código para retirar, la tienda, el pago y el comprobante en PDF. La página se
+actualiza sola cada 15 s y al volver a la ventana; la cabecera avisa del pedido en curso desde
+cualquier página (`features/pagos/usePedidoActivo.ts`) y Coli responde con la etapa, el código
+y cómo va el pago. Un pedido ajeno se ve igual que uno que no existe.
+
+### PDF
+
+`shared/lib/pdf.ts` (`DocumentoPdf`, sobre jsPDF, que se descarga solo cuando se pide el primer
+PDF) arma documentos A4 con la cabecera de la marca, secciones, filas, líneas de total, el
+código de retiro, las etapas y el pie con el número de página; si el contenido no cabe sigue en
+otra hoja. Lo usan el resumen de la solicitud con el diagnóstico y sus fotos
+(`features/solicitudes/resumenPdf.ts`) y el comprobante del pedido
+(`features/pagos/comprobantePdf.ts`).
 
 ## Qué se dejó fuera a propósito
 
@@ -252,7 +309,10 @@ sin cambiar el esquema de `pedidos`. El punto de retiro elegido también vive en
 - **Un modelo de visión entrenado**: ver los límites del diagnóstico arriba.
 - **Subir las fotos a un almacenamiento de archivos** (Supabase Storage): hoy van
   comprimidas dentro del registro.
-- **Pasarela de pagos**: el carrito captura el pedido, no cobra.
+- **Cobro real**: la pasarela es de práctica y no mueve dinero. Para cobrar de verdad habría
+  que reemplazar `domain/pagos/pasarela.ts` por un proveedor (Wompi, PayU o Mercado Pago), que
+  recibe la tarjeta en su propia página, y confirmar el pago desde un servidor, no desde el
+  navegador. La factura electrónica tampoco existe: el PDF es un comprobante.
 
 ## Pruebas
 
@@ -271,7 +331,11 @@ sin cambiar el esquema de `pedidos`. El punto de retiro elegido también vive en
 - `features/auth/mockUsuarios.test.ts` — validación de credenciales y asignación de rol
 - `features/solicitudes/wizard/WizardPage.test.tsx` — recorrido completo del asistente (integración)
 - `domain/tienda/calculadora.test.ts` — redondeo de galones de la calculadora de pintura
-- `domain/chat/asistenteVirtual.test.ts` — respuestas del asistente según la pregunta y los pedidos, y rechazo de temas ajenos
+- `domain/pagos/*.test.ts` — tarjeta (Luhn, marca, formato), pasarela de práctica, cupones y totales
+- `data/repositories/tiendaRepository.local.test.ts` — pedidos con pago, cupón, código de retiro e historial, cobro y reembolso
+- `pages/Pagar.test.tsx` — el pago de punta a punta con cada medio, rechazos y que no se guarde la tarjeta
+- `features/pagos/comprobantePdf.test.ts`, `features/solicitudes/resumenPdf.test.ts` y `shared/lib/pdf.test.ts` — los PDF
+- `domain/chat/asistenteVirtual.test.ts` — respuestas del asistente según la pregunta y los pedidos (rastreo, pagos, cupones), y rechazo de temas ajenos
 - `features/chat/llamada.test.ts` — turnos de la llamada de voz (escuchar, responder, silencio, silenciar, interrumpir)
 - `features/chat/sintesis.test.ts` y `textoParaVoz.test.ts` — elección de la mejor voz (Edge y Chrome) y texto preparado para oírse
 - `shared/lib/formato.test.ts` — pesos y fechas

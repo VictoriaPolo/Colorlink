@@ -16,3 +16,12 @@ export function fechaConHora(iso: string): string {
   const hora = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
   return `${fecha.getDate()} ${MESES[fecha.getMonth()]}, ${hora}`
 }
+
+const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+/** '2026-10-30' (o una fecha con hora) → '30 de octubre de 2026'. */
+export function fechaLarga(fecha: string): string {
+  const [anio, mes, dia] = fecha.slice(0, 10).split('-').map(Number)
+  if (!anio || !mes || !dia) return fecha
+  return `${dia} de ${MESES_LARGOS[mes - 1]} de ${anio}`
+}

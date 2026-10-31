@@ -1,3 +1,5 @@
+import type { Pago } from '@/domain/pagos/tipos'
+
 export type CategoriaProducto =
   | 'Impermeabilizantes'
   | 'Fachadas y exteriores'
@@ -63,6 +65,15 @@ export interface Pedido {
   fecha: string
   /** Dónde el cliente va a retirarlo — ver data/puntosDeRetiro.ts. */
   puntoRetiro?: string
+  /** Cupón que se usó y cuánto descontó (el `total` ya viene descontado). */
+  cupon?: string
+  descuento?: number
+  /** Cómo se pagó y en qué estado va el pago. Los pedidos de antes de los pagos no lo traen: ver `pagoDe`. */
+  pago?: Pago
+  /** Seis caracteres que la persona muestra en la tienda para retirar el pedido. */
+  codigoRetiro?: string
+  /** Cuándo pasó el pedido por cada etapa (fecha y hora ISO): es lo que se le muestra al cliente al rastrearlo. */
+  historial?: { estado: string; fecha: string }[]
   /** Notas internas del equipo, igual que en las solicitudes. */
   notas?: NotaPedido[]
 }

@@ -1,6 +1,8 @@
 import type { Pedido, Producto } from '@/domain/tienda/types'
 import { ORDEN_ESTADOS, type Solicitud } from '@/domain/solicitud/types'
 import { precioCunete } from '@/domain/tienda/calculadora'
+import { CUPONES } from '@/domain/pagos/cupones'
+import { pagoDe } from '@/domain/pagos/pasarela'
 import { normalizar } from '@/domain/texto'
 
 export interface RespuestaChat {
@@ -22,10 +24,10 @@ export interface ContextoChat {
 
 /** Preguntas sugeridas al abrir el chat, iguales en espíritu a las de Pintu
  * (el asistente del sitio de referencia): pedido, qué pintura usar y tienda. */
-export const PREGUNTAS_SUGERIDAS = ['¿Dónde va mi pedido?', '¿Qué pintura uso?', '¿Dónde queda la tienda?']
+export const PREGUNTAS_SUGERIDAS = ['¿Dónde va mi pedido?', '¿Qué pintura uso?', '¿Cómo puedo pagar?', '¿Dónde queda la tienda?']
 
 const ALCANCE =
-  'pinturas y colores, soluciones para fachadas, humedad, goteras o metal oxidado, cuánta pintura necesitas, tus pedidos y solicitudes, compras y nuestras tiendas'
+  'pinturas y colores, soluciones para fachadas, humedad, goteras o metal oxidado, cuánta pintura necesitas, tus pedidos y solicitudes, compras, pagos y nuestras tiendas'
 
 /** Palabras que solo tienen sentido en la tienda: si aparecen, la pregunta es de
  * COLORLINK aunque mencione otra cosa (ej. "pintar las líneas de una cancha de fútbol"). */
@@ -35,7 +37,7 @@ const TEMA_PROPIO =
 /** Palabras de la tienda que también se usan fuera de ella ("color", "precio",
  * "hora"...): cuentan como tema de la tienda solo si no hay señales de otro tema. */
 const TEMA_COMPARTIDO =
-  /\b(colou?r\w*|tonos?|precios?|cuest\w*|vale|valor|costos?|metros?|m2|rendimiento|rinde|interior\w*|exterior\w*|salas?|cuartos?|habitacion\w*|cocinas?|alcobas?|banos?|techos?|terrazas?|azoteas?|losas?|madera\w*|concreto|cemento|mamposteria|metal\w*|rejas?|verjas?|superficie\w*|acabados?|mate|brillante|satinado|compr\w*|pag\w*|tarjetas?|efectivo|envios?|domicilio\w*|entrega\w*|despacho\w*|sucursal\w*|horarios?|hora|abren|abre|cierran|cierra|atienden|atencion|direccion\w*|tiendas?|garantia\w*|descuentos?|promocion\w*|ofertas?|productos?|catalogo|recomien\w*|obras?|proyectos?|asesor\w*|visita\w*|presupuesto\w*|casas?|apartamentos?|piscinas?|pisos?|puertas?|ventanas?)\b/
+  /\b(colou?r\w*|tonos?|precios?|cuest\w*|vale|valor|costos?|metros?|m2|rendimiento|rinde|interior\w*|exterior\w*|salas?|cuartos?|habitacion\w*|cocinas?|alcobas?|banos?|techos?|terrazas?|azoteas?|losas?|madera\w*|concreto|cemento|mamposteria|metal\w*|rejas?|verjas?|superficie\w*|acabados?|mate|brillante|satinado|compr\w*|pag\w*|tarjetas?|efectivo|nequi|pse|cupon\w*|comprobante\w*|factura\w*|reembols\w*|rastre\w*|envios?|domicilio\w*|entrega\w*|despacho\w*|sucursal\w*|horarios?|hora|abren|abre|cierran|cierra|atienden|atencion|direccion\w*|tiendas?|garantia\w*|descuentos?|promocion\w*|ofertas?|productos?|catalogo|recomien\w*|obras?|proyectos?|asesor\w*|visita\w*|presupuesto\w*|casas?|apartamentos?|piscinas?|pisos?|puertas?|ventanas?)\b/
 
 /** Señales de temas ajenos a la tienda. No es exhaustiva a propósito: lo que no
  * traiga ninguna palabra de la tienda también se rechaza (ver el final). */
@@ -73,6 +75,30 @@ function productosMencionados(t: string, productos: Producto[]): Producto[] {
   })
 }
 
+const enCurso = (p: Pedido) => p.estado !== 'Entregado' && p.estado !== 'Cancelado'
+
+/** Dónde va un pedido, dicho como lo diría alguien de la tienda: la etapa, qué sigue y cómo va el pago. */
+function situacionDePedido(p: Pedido): string {
+  const cuantos = p.items.length
+  const resumen = `Tu pedido ${p.id} está "${p.estado}": ${cuantos} ${cuantos === 1 ? 'producto' : 'productos'} por un total de ${formatoCOP.format(p.total)}.`
+  const queSigue: Record<string, string> = {
+    Recibido: 'Ya lo recibimos y en breve empezamos a prepararlo; queda listo para retirar unas 2 horas después de recibido.',
+    'En preparación': 'Estamos mezclando tus colores y alistando todo; queda listo unas 2 horas después de recibido.',
+    'Listo para retiro': `¡Ya está listo! Pasa por ${p.puntoRetiro ?? 'tu tienda'}${p.codigoRetiro ? ` con tu código de retiro ${p.codigoRetiro}` : ''}.`,
+    Entregado: 'Ya lo retiraste. ¡Gracias por tu compra!',
+    Cancelado: 'Fue cancelado; si ya habías pagado, la tienda gestiona el reembolso.',
+  }
+  const pago = pagoDe(p)
+  const sobreElPago = !enCurso(p)
+    ? ''
+    : pago.estado === 'Pendiente'
+      ? ' Lo pagas al retirar.'
+      : pago.estado === 'Aprobado'
+        ? ` El pago ya está aprobado (${pago.detalle}).`
+        : ''
+  return `${resumen} ${queSigue[p.estado] ?? ''}${sobreElPago}`.replace(/\s+/g, ' ').trim()
+}
+
 function fichaProducto(p: Producto): string {
   return `${p.nombre}: ${p.descripcion} Cuesta ${formatoCOP.format(p.precio)} el galón (cuñete de 5 galones: ${formatoCOP.format(precioCunete(p.precio))}) y rinde unos ${p.rendimientoM2PorGalon} m² por galón a una mano.`
 }
@@ -99,19 +125,69 @@ export function generarRespuestaChat(mensajeUsuario: string, contexto: ContextoC
     }
   }
 
-  if (tiene(/\b(mis? pedidos?|el pedido|estado del pedido|donde va|cuando llega|ya llego|mi compra|mi orden|mi envio)\b/)) {
+  // Los pagos y el comprobante se preguntan junto con "mi pedido": se atienden antes para que no los gane el rastreo.
+  if (tiene(/\b(comprobante\w*|factura\w*)\b/)) {
+    const reciente = pedidos[0]
+    return {
+      texto: 'En el detalle de tu pedido descargas el comprobante en PDF, con el código de retiro, los productos y el pago. Es un comprobante de práctica: no es una factura.',
+      ruta: reciente ? `/pedidos/${reciente.id}` : '/mis-solicitudes?seccion=pedidos',
+      etiquetaRuta: reciente ? 'Abrir mi pedido' : 'Ver mis pedidos',
+    }
+  }
+
+  if (tiene(/\b(cupon\w*|codigo (de|para) descuento|codigo promocional)\b/)) {
+    return {
+      // Una frase por cupón: así la voz respira entre uno y otro en vez de cortar a media descripción.
+      texto: `Tenemos estos cupones. ${CUPONES.map((c) => `${c.codigo}: ${c.descripcion}.`).join(' ')} Los escribes en el carrito, antes de pagar.`,
+      ruta: '/carrito',
+      etiquetaRuta: 'Ir al carrito',
+    }
+  }
+
+  if (tiene(/\b(rechaz\w*|declin\w*|no pasa|no paso|fondos|no me deja pagar)\b/) && tiene(/\b(pago|pagar|tarjeta\w*|compra)\b/)) {
+    return {
+      texto: 'Esta es una pasarela de práctica: solo acepta tarjetas de prueba y rechaza las reales. Prueba con la Visa 4242 4242 4242 4242, cualquier fecha futura y cualquier código de 3 números, o paga con PSE, Nequi o al retirar.',
+      ruta: '/carrito',
+      etiquetaRuta: 'Ir al carrito',
+    }
+  }
+
+  if (tiene(/\b(seguro|segura|seguridad|guardan|almacenan)\b/) && tiene(/\b(pag\w*|tarjeta\w*|datos)\b/)) {
+    return {
+      texto: 'No guardamos el número de tu tarjeta ni el código de seguridad: de cada pago solo queda la marca, los últimos cuatro dígitos y la referencia. Además, esta pasarela es de práctica y no cobra dinero real.',
+    }
+  }
+
+  if (tiene(/\b(cancel\w*|anular|reembols\w*|devolu\w*|devuelv\w*)\b/) && tiene(/\b(pedido|compra|orden|pago)\b/)) {
+    return {
+      texto: 'Para cancelar un pedido o pedir un reembolso, avísale al equipo de la tienda donde lo retiras antes de que esté listo. Ellos lo cancelan y registran la devolución del pago, y lo ves en el detalle de tu pedido.',
+      ruta: '/puntos-de-retiro',
+      etiquetaRuta: 'Ver tiendas',
+    }
+  }
+
+  if (tiene(/\b(formas?|medios?|metodos?) de pago\b|\bcomo (puedo |se |lo )?pag\w*|\bpuedo pagar\b|\baceptan (tarjeta\w*|nequi|pse|efectivo|pagos?|debito|credito)\b|\b(pago|pagar|paga) (con|por) (tarjeta|nequi|pse|efectivo|debito|credito)\b/)) {
+    return {
+      texto: 'Puedes pagar con tarjeta, PSE o Nequi, o dejar el pedido para pagarlo al retirar en la tienda. Es una pasarela de práctica: no se cobra dinero real ni guardamos tu tarjeta. Si tienes un cupón, lo aplicas en el carrito.',
+      ruta: '/carrito',
+      etiquetaRuta: 'Ir al carrito',
+    }
+  }
+
+  if (tiene(/\b(mis? pedidos?|el pedido|estado del pedido|donde va|cuando llega|ya llego|mi compra|mi orden|mi envio|rastre\w*|codigo de retiro)\b/)) {
     if (pedidos.length === 0) {
       return {
-        texto: 'No encuentro pedidos asociados a tu cuenta todavía. Cuando confirmes uno, queda listo para retirar en tu tienda en 2 horas.',
+        texto: 'No encuentro pedidos asociados a tu cuenta todavía. Cuando confirmes uno, queda listo para retirar en tu tienda en 2 horas y lo puedes rastrear paso a paso.',
         ruta: '/catalogo',
         etiquetaRuta: 'Ir al catálogo',
       }
     }
-    const ultimo = pedidos[0]
+    const pedido = pedidos.find(enCurso) ?? pedidos[0]
+    const otros = pedidos.filter((p) => enCurso(p) && p !== pedido).length
     return {
-      texto: `Tu pedido ${ultimo.id} está "${ultimo.estado}": ${ultimo.items.length} ${ultimo.items.length === 1 ? 'producto' : 'productos'} por un total de ${formatoCOP.format(ultimo.total)}, del ${ultimo.fecha}. Queda listo para retirar en tu tienda 2 horas después de confirmado.`,
-      ruta: '/mis-solicitudes',
-      etiquetaRuta: 'Ver mis pedidos',
+      texto: `${otros > 0 ? `Tienes ${otros + 1} pedidos en curso; este es el más reciente. ` : ''}${situacionDePedido(pedido)}`,
+      ruta: `/pedidos/${pedido.id}`,
+      etiquetaRuta: enCurso(pedido) ? 'Rastrear mi pedido' : 'Ver mi pedido',
     }
   }
 
@@ -223,9 +299,17 @@ export function generarRespuestaChat(mensajeUsuario: string, contexto: ContextoC
     }
   }
 
-  if (tiene(/\b(compr\w*|pagar|pago\w*|tarjetas?|efectivo|carrito)\b/)) {
+  if (tiene(/\b(pagar|pago\w*|tarjetas?|efectivo|nequi|pse|debito|credito)\b/)) {
     return {
-      texto: 'Para comprar: agrega los productos al carrito desde el catálogo (en galón o cuñete), confirma el pedido y retíralo en tu tienda en 2 horas. En este prototipo no se cobra en línea: el pago se hace al retirar.',
+      texto: 'Puedes pagar con tarjeta, PSE o Nequi, o dejar el pedido para pagarlo al retirar en la tienda. Es una pasarela de práctica: no se cobra dinero real ni guardamos tu tarjeta.',
+      ruta: '/carrito',
+      etiquetaRuta: 'Ir al carrito',
+    }
+  }
+
+  if (tiene(/\b(compr\w*|carrito)\b/)) {
+    return {
+      texto: 'Para comprar: agrega los productos al carrito desde el catálogo (en galón o cuñete), paga con tarjeta, PSE, Nequi o al retirar, y sigue tu pedido paso a paso hasta que lo retires en tu tienda en 2 horas.',
       ruta: '/catalogo',
       etiquetaRuta: 'Ir al catálogo',
     }

@@ -115,7 +115,7 @@ describe('generarRespuestaChat — responde con los datos reales', () => {
       ['Quiero hablar con un asesor', '/solicitar'],
       ['Quiero una cotización', '/solicitar'],
       ['¿Cómo compro?', '/catalogo'],
-      ['¿Cómo puedo pagar?', '/catalogo'],
+      ['¿Cómo puedo pagar?', '/carrito'],
       ['¿A qué hora abren?', '/puntos-de-retiro'],
       ['¿Hacen envíos a domicilio?', '/puntos-de-retiro'],
       ['Mi pared tiene grietas, ¿qué hago?', '/?kit=Fachada exterior'],
@@ -127,6 +127,77 @@ describe('generarRespuestaChat — responde con los datos reales', () => {
     }
     expect(generarRespuestaChat('¿Tienen descuentos?').texto).toContain('15%')
     expect(generarRespuestaChat('¿Qué garantía tienen las pinturas?').texto).toContain('garantía')
+  })
+})
+
+describe('generarRespuestaChat — pagos y rastreo de pedidos', () => {
+  const pago = (estado: 'Aprobado' | 'Pendiente') => ({
+    metodo: estado === 'Pendiente' ? ('efectivo' as const) : ('tarjeta' as const),
+    estado,
+    referencia: 'PAY-TEST2345',
+    monto: 145900,
+    fecha: '2026-10-30T10:00:00.000Z',
+    detalle: estado === 'Pendiente' ? 'Pagas al retirar en la tienda' : 'Visa ···· 4242',
+  })
+  const enPreparacion: Pedido = { ...pedidoDemo, estado: 'En preparación', pago: pago('Aprobado') }
+  const listo: Pedido = { ...pedidoDemo, id: 'PED-1002', estado: 'Listo para retiro', codigoRetiro: 'K7M2QX', puntoRetiro: 'Centro de Pinturas Colorlink - Chapinero', pago: pago('Pendiente') }
+  const entregado: Pedido = { ...pedidoDemo, id: 'PED-0999', estado: 'Entregado' }
+
+  it('dice en qué etapa va el pedido y lleva a su rastreo', () => {
+    const respuesta = generarRespuestaChat('¿Dónde va mi pedido?', { pedidos: [enPreparacion] })
+    expect(respuesta.texto).toContain('"En preparación"')
+    expect(respuesta.texto).toContain('mezclando tus colores')
+    expect(respuesta.texto).toContain('El pago ya está aprobado (Visa ···· 4242)')
+    expect(respuesta.ruta).toBe('/pedidos/PED-1001')
+    expect(respuesta.etiquetaRuta).toBe('Rastrear mi pedido')
+  })
+
+  it('cuando está listo da el código de retiro y avisa que se paga al retirar', () => {
+    const respuesta = generarRespuestaChat('¿Cuál es mi código de retiro?', { pedidos: [listo] })
+    expect(respuesta.texto).toContain('¡Ya está listo!')
+    expect(respuesta.texto).toContain('código de retiro K7M2QX')
+    expect(respuesta.texto).toContain('Chapinero')
+    expect(respuesta.texto).toContain('Lo pagas al retirar')
+  })
+
+  it('prefiere el pedido en curso a uno ya entregado, y avisa si hay varios', () => {
+    expect(generarRespuestaChat('rastrear mi pedido', { pedidos: [entregado, enPreparacion] }).ruta).toBe('/pedidos/PED-1001')
+    expect(generarRespuestaChat('mis pedidos', { pedidos: [listo, enPreparacion] }).texto).toMatch(/^Tienes 2 pedidos en curso/)
+    const solo = generarRespuestaChat('¿dónde va mi pedido?', { pedidos: [entregado] })
+    expect(solo.texto).toContain('Ya lo retiraste')
+    expect(solo.etiquetaRuta).toBe('Ver mi pedido')
+  })
+
+  it('explica los medios de pago y que la pasarela es de práctica', () => {
+    for (const pregunta of ['¿Cómo puedo pagar?', '¿Aceptan Nequi?', '¿Puedo pagar con PSE?', '¿Qué medios de pago tienen?', '¿Se paga con tarjeta?']) {
+      const respuesta = generarRespuestaChat(pregunta)
+      expect(respuesta.texto, pregunta).toContain('pasarela de práctica')
+      expect(respuesta.ruta, pregunta).toBe('/carrito')
+    }
+  })
+
+  it('lista los cupones y dónde se escriben', () => {
+    const respuesta = generarRespuestaChat('¿Tienen cupones de descuento?')
+    expect(respuesta.texto).toContain('BIENVENIDA10')
+    expect(respuesta.texto).toContain('RETIRO20')
+    expect(respuesta.ruta).toBe('/carrito')
+  })
+
+  it('ayuda con un pago rechazado, la seguridad de la tarjeta y el comprobante', () => {
+    expect(generarRespuestaChat('Mi pago fue rechazado').texto).toContain('4242 4242 4242 4242')
+    expect(generarRespuestaChat('¿Es seguro pagar con tarjeta? ¿Guardan mis datos?').texto).toContain('No guardamos el número de tu tarjeta')
+    const comprobante = generarRespuestaChat('¿Dónde descargo el comprobante de mi pedido?', { pedidos: [enPreparacion] })
+    expect(comprobante.texto).toContain('comprobante en PDF')
+    expect(comprobante.ruta).toBe('/pedidos/PED-1001')
+  })
+
+  it('para cancelar o pedir reembolso manda a la tienda; "cuándo recibo mi pedido" sigue siendo rastreo', () => {
+    expect(generarRespuestaChat('Quiero cancelar mi pedido').texto).toContain('avísale al equipo')
+    expect(generarRespuestaChat('¿Cuándo recibo mi pedido?', { pedidos: [enPreparacion] }).ruta).toBe('/pedidos/PED-1001')
+  })
+
+  it('"¿Cómo compro?" sigue llevando al catálogo', () => {
+    expect(generarRespuestaChat('¿Cómo compro?').ruta).toBe('/catalogo')
   })
 })
 

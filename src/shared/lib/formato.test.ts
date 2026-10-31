@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fechaCorta, fechaConHora, formatoCOP } from './formato'
+import { fechaCorta, fechaConHora, fechaLarga, formatoCOP } from './formato'
 
 describe('formato', () => {
   it('muestra una fecha como día y mes abreviado', () => {
@@ -18,5 +18,16 @@ describe('formato', () => {
 
   it('formatea pesos colombianos sin decimales', () => {
     expect(formatoCOP.format(1133000).replace(/\s/g, ' ')).toMatch(/1\.133\.000/)
+  })
+})
+
+describe('fechaLarga', () => {
+  it('escribe el día, el mes completo y el año', () => {
+    expect(fechaLarga('2026-10-30')).toBe('30 de octubre de 2026')
+    expect(fechaLarga('2026-01-05T08:00:00Z')).toBe('5 de enero de 2026')
+  })
+
+  it('devuelve el texto tal cual si no es una fecha', () => {
+    expect(fechaLarga('pronto')).toBe('pronto')
   })
 })

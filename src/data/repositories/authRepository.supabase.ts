@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
 import type { ProveedorAuth, RolUsuario, Usuario } from '@/features/auth/types'
 import { supabase } from '@/data/supabaseClient'
+import { MODO_DEMO } from '@/data/modoDemo'
 import { olvidarSesionLocal, sesionDemo, sesionLocalGuardada } from './authRepository.local'
 import type { AuthRepository } from './authRepository.types'
 
@@ -54,13 +55,16 @@ export const authRepositorySupabase: AuthRepository = {
 
   async restaurarSesion() {
     const local = sesionLocalGuardada()
-    if (local) return local
+    if (local) {
+      if (MODO_DEMO) return local
+      olvidarSesionLocal() // con datos compartidos solo valen las sesiones reales
+    }
     const { data } = await requireClient().auth.getSession()
     return data.session ? aUsuario(data.session.user) : null
   },
 
   async iniciarSesion(email, password) {
-    const demo = sesionDemo(email, password)
+    const demo = MODO_DEMO ? sesionDemo(email, password) : null
     if (demo) return demo
     try {
       const { data, error } = await requireClient().auth.signInWithPassword({ email: email.trim(), password })

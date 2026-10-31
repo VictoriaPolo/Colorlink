@@ -1,4 +1,4 @@
-const ETAPAS = ['Necesidad', 'Solución técnica', 'Abastecimiento', 'Servicio', 'Calidad']
+import { ETAPAS_DEL_NEGOCIO as ETAPAS } from '@/domain/solicitud/estadoMachine'
 
 export default function ProcessTimeline({ etapaActual }: { etapaActual: number }) {
   return (

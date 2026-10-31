@@ -6,6 +6,7 @@ import Logo from '@/shared/brand/Logo'
 import FranjaColores from '@/shared/brand/FranjaColores'
 import AbanicoColores from '@/shared/brand/AbanicoColores'
 import { paletaColores } from '@/data/paletaColores'
+import { MODO_DEMO } from '@/data/modoDemo'
 import { solicitudesRepository } from '@/data/repositories/solicitudesRepository'
 import { estaFinalizada } from '@/domain/solicitud/estadoMachine'
 import type { ResultadoAuth } from '@/data/repositories/authRepository.types'
@@ -59,6 +60,7 @@ export default function AuthPage({ modo }: { modo: 'login' | 'registro' }) {
   // "Solicitudes" en AdminLayout) — conecta el botón de demo con algo real
   // en vez de ser una puerta vacía.
   useEffect(() => {
+    if (!MODO_DEMO) return
     let vivo = true
     solicitudesRepository
       .listar()
@@ -307,7 +309,7 @@ export default function AuthPage({ modo }: { modo: 'login' | 'registro' }) {
                 </Link>
               </p>
 
-              {!esRegistro && (
+              {!esRegistro && MODO_DEMO && (
                 <div className="mt-6 flex flex-col gap-3">
                   <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Prototipo académico · probar sin crear cuenta</p>
 

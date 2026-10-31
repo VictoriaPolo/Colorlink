@@ -124,3 +124,34 @@ export function dibujarZonas(canvas: HTMLCanvasElement, metricas: MetricasImagen
   }
   ctx.putImageData(imagen, 0, 0)
 }
+
+/** La foto lista para un PDF: reducida, en JPEG y con las zonas del diagnóstico marcadas encima
+ * (igual que en pantalla). Si la foto no se puede analizar, va sola. */
+export async function fotoParaPdf(
+  url: string,
+  clases?: ClaseDano[],
+  ladoMax = 900,
+): Promise<{ dataUrl: string; ancho: number; alto: number; leyenda: ClaseDano[] }> {
+  const img = await cargarImagen(url)
+  const escala = Math.min(1, ladoMax / Math.max(img.naturalWidth, img.naturalHeight))
+  const ancho = Math.max(1, Math.round(img.naturalWidth * escala))
+  const alto = Math.max(1, Math.round(img.naturalHeight * escala))
+  const canvas = document.createElement('canvas')
+  canvas.width = ancho
+  canvas.height = alto
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, ancho, alto)
+  ctx.drawImage(img, 0, 0, ancho, alto)
+  let leyenda: ClaseDano[] = []
+  try {
+    const metricas = await analizarImagenUrl(url)
+    const zonas = document.createElement('canvas')
+    dibujarZonas(zonas, metricas, clases)
+    ctx.drawImage(zonas, 0, 0, ancho, alto)
+    leyenda = clasesVisibles(metricas, clases)
+  } catch {
+    // Sin análisis, va la foto sola.
+  }
+  return { dataUrl: canvas.toDataURL('image/jpeg', 0.82), ancho, alto, leyenda }
+}

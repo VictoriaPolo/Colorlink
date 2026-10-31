@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from '@/features/auth/AuthContext'
 import { SolicitudesProvider } from '@/features/solicitudes/context/SolicitudesContext'
 import { CartProvider } from '@/features/tienda/CartContext'
 import ChatWidget from '@/features/chat/ChatWidget'
+import AvisoModoLocal from '@/features/admin/AvisoModoLocal'
 import RequireAuth from '@/features/auth/RequireAuth'
 import Home from '@/pages/Home'
 import Solicitar from '@/pages/Solicitar'
@@ -32,6 +33,10 @@ const AdminPedidos = lazy(() => import('@/pages/admin/AdminPedidos'))
 const AdminPedidoDetalle = lazy(() => import('@/pages/admin/AdminPedidoDetalle'))
 const AdminClientes = lazy(() => import('@/pages/admin/AdminClientes'))
 const AdminEquipo = lazy(() => import('@/pages/admin/AdminEquipo'))
+
+// El pago y el rastreo son el final de la compra: no pesan en la primera carga.
+const Pagar = lazy(() => import('@/pages/Pagar'))
+const PedidoDetalle = lazy(() => import('@/pages/PedidoDetalle'))
 
 function Cargando() {
   return (
@@ -82,6 +87,8 @@ function Rutas() {
         <Route path="/simulador" element={<SoloCliente><Simulador /></SoloCliente>} />
         <Route path="/puntos-de-retiro" element={<SoloCliente><PuntosDeRetiro /></SoloCliente>} />
         <Route path="/carrito" element={<SoloCliente><Carrito /></SoloCliente>} />
+        <Route path="/pagar" element={<SoloCliente><Pagar /></SoloCliente>} />
+        <Route path="/pedidos/:id" element={<SoloCliente><PedidoDetalle /></SoloCliente>} />
         <Route
           path="/admin"
           element={
@@ -126,6 +133,7 @@ function Marco() {
     return (
       <>
         <ScrollToTop />
+        <AvisoModoLocal />
         <Rutas />
         <ChatWidget />
       </>

@@ -52,6 +52,13 @@ describe('textoParaVoz', () => {
     expect(textoParaVoz('Tu solicitud CL-1002')).toBe('Tu solicitud C L 1002')
   })
 
+  it('dicta el código de retiro y los datos de pago carácter por carácter', () => {
+    expect(textoParaVoz('Pasa por la tienda con tu código de retiro K7M2QX.')).toBe('Pasa por la tienda con tu código de retiro K 7 M 2 Q X.')
+    expect(textoParaVoz('El pago ya está aprobado (Visa ···· 4242).')).toBe('El pago ya está aprobado, Visa terminada en 4 2 4 2.')
+    expect(textoParaVoz('Prueba con la Visa 4242 4242 4242 4242 y listo')).toBe('Prueba con la Visa 4 2 4 2, 4 2 4 2, 4 2 4 2, 4 2 4 2 y listo')
+    expect(textoParaVoz('Paga por PSE · Bancolombia')).toBe('Paga por PSE, Bancolombia')
+  })
+
   it('no deletrea la marca ni los nombres en mayúsculas', () => {
     expect(textoParaVoz('Buenos días, LAURA. Soy Coli, el asistente de COLORLINK.')).toBe(
       'Buenos días, Laura. Soy Coli, el asistente de Color link.',

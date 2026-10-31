@@ -52,6 +52,9 @@ const ETAPA_POR_ESTADO: Record<EstadoSolicitud, number> = {
   Finalizada: 5,
 }
 
+/** Los nombres de esas 5 etapas, en orden. */
+export const ETAPAS_DEL_NEGOCIO = ['Necesidad', 'Solución técnica', 'Abastecimiento', 'Servicio', 'Calidad']
+
 export function etapaDelNegocio(estado: EstadoSolicitud): number {
   return ETAPA_POR_ESTADO[estado]
 }

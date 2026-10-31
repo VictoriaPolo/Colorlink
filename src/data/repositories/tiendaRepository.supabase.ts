@@ -1,6 +1,8 @@
 import type { CategoriaProducto, ItemCarrito, Kit, Pedido, PatologiaKit, Producto } from '@/domain/tienda/types'
+import type { Pago } from '@/domain/pagos/tipos'
+import { codigoRetiro, pagoDe, referenciaPago } from '@/domain/pagos/pasarela'
 import { supabase } from '@/data/supabaseClient'
-import type { TiendaRepository } from './tiendaRepository.types'
+import type { ExtrasPedido, TiendaRepository } from './tiendaRepository.types'
 
 function requireClient() {
   if (!supabase) throw new Error('Supabase no está configurado (faltan VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY).')
@@ -72,6 +74,12 @@ interface PedidoRow {
   created_at: string
   punto_retiro: string | null
   notas: NotaPedidoRow[] | null
+  /** Las cuatro siguientes las agrega supabase/schema_pagos.sql. */
+  pago?: Pago | null
+  cupon?: string | null
+  descuento?: number | null
+  codigo_retiro?: string | null
+  historial?: { estado: string; fecha: string }[] | null
 }
 
 function mapPedido(row: PedidoRow): Pedido {
@@ -90,6 +98,11 @@ function mapPedido(row: PedidoRow): Pedido {
     fecha: row.created_at.slice(0, 10),
     puntoRetiro: row.punto_retiro ?? undefined,
     notas: row.notas ?? [],
+    cupon: row.cupon ?? undefined,
+    descuento: row.descuento || undefined,
+    pago: row.pago ?? undefined,
+    codigoRetiro: row.codigo_retiro ?? undefined,
+    historial: row.historial ?? undefined,
   }
 }
 
@@ -106,25 +119,44 @@ export const tiendaRepositorySupabase: TiendaRepository = {
     return (data ?? []).map(mapKit)
   },
 
-  async crearPedido(items: ItemCarrito[], clienteNombre: string, clienteEmail: string, puntoRetiro?: string): Promise<Pedido> {
-    const total = items.reduce((sum, i) => sum + i.precioUnitario * i.cantidad, 0)
-    const { data, error } = await requireClient()
-      .from('pedidos')
-      .insert({
-        cliente_nombre: clienteNombre,
-        cliente_email: clienteEmail || null,
-        items: items.map((i) => ({
-          producto_id: i.productoId,
-          nombre: i.nombre,
-          cantidad: i.cantidad,
-          precio_unitario: i.precioUnitario,
-        })),
-        total,
-        punto_retiro: puntoRetiro ?? null,
-      })
-      .select('id, created_at')
-      .single()
-    if (error) throw error
+  async crearPedido(
+    items: ItemCarrito[],
+    clienteNombre: string,
+    clienteEmail: string,
+    puntoRetiro?: string,
+    extras?: ExtrasPedido,
+  ): Promise<Pedido> {
+    const subtotal = items.reduce((sum, i) => sum + i.precioUnitario * i.cantidad, 0)
+    const descuento = Math.min(Math.max(0, extras?.descuento ?? 0), subtotal)
+    const total = subtotal - descuento
+    const codigo = extras?.codigoRetiro ?? codigoRetiro()
+    const base = {
+      cliente_nombre: clienteNombre,
+      cliente_email: clienteEmail || null,
+      items: items.map((i) => ({
+        producto_id: i.productoId,
+        nombre: i.nombre,
+        cantidad: i.cantidad,
+        precio_unitario: i.precioUnitario,
+      })),
+      total,
+      punto_retiro: puntoRetiro ?? null,
+    }
+    const conPago = {
+      ...base,
+      pago: extras?.pago ?? null,
+      cupon: descuento > 0 ? (extras?.cupon ?? null) : null,
+      descuento,
+      codigo_retiro: codigo,
+      historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
+    }
+    let respuesta = await requireClient().from('pedidos').insert(conPago).select('id, created_at').single()
+    // Si todavía no se corrió supabase/schema_pagos.sql, el pedido se guarda igual, sin los datos del pago.
+    if (respuesta.error && /pago|cupon|descuento|codigo_retiro|historial|schema cache/i.test(respuesta.error.message)) {
+      respuesta = await requireClient().from('pedidos').insert(base).select('id, created_at').single()
+    }
+    if (respuesta.error) throw respuesta.error
+    const data = respuesta.data
 
     return {
       id: data.id as string,
@@ -136,6 +168,10 @@ export const tiendaRepositorySupabase: TiendaRepository = {
       fecha: String(data.created_at).slice(0, 10),
       puntoRetiro,
       notas: [],
+      ...(descuento > 0 ? { cupon: extras?.cupon, descuento } : {}),
+      pago: extras?.pago,
+      codigoRetiro: codigo,
+      historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
     }
   },
 
@@ -162,7 +198,26 @@ export const tiendaRepositorySupabase: TiendaRepository = {
   },
 
   async actualizarEstadoPedido(id, estado) {
-    const { data, error } = await requireClient().from('pedidos').update({ estado }).eq('id', id).select('*').maybeSingle()
+    const actual = await tiendaRepositorySupabase.obtenerPedido(id)
+    if (!actual) return undefined
+    const previo = actual.historial ?? []
+    const historial = previo.at(-1)?.estado === estado ? previo : [...previo, { estado, fecha: new Date().toISOString() }]
+    let respuesta = await requireClient().from('pedidos').update({ estado, historial }).eq('id', id).select('*').maybeSingle()
+    // Si todavía no se corrió supabase/schema_pagos.sql, el estado cambia igual, sin el historial.
+    if (respuesta.error && /historial|schema cache/i.test(respuesta.error.message)) {
+      respuesta = await requireClient().from('pedidos').update({ estado }).eq('id', id).select('*').maybeSingle()
+    }
+    if (respuesta.error) throw respuesta.error
+    return respuesta.data ? mapPedido(respuesta.data) : undefined
+  },
+
+  async actualizarPagoPedido(id, estado) {
+    const actual = await tiendaRepositorySupabase.obtenerPedido(id)
+    if (!actual) return undefined
+    const pago = pagoDe(actual)
+    const referencia = pago.referencia === '—' ? referenciaPago() : pago.referencia
+    const nuevo: Pago = { ...pago, estado, referencia, fecha: new Date().toISOString() }
+    const { data, error } = await requireClient().from('pedidos').update({ pago: nuevo }).eq('id', id).select('*').maybeSingle()
     if (error) throw error
     return data ? mapPedido(data) : undefined
   },

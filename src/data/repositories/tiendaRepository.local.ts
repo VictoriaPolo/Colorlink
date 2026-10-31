@@ -1,4 +1,5 @@
 import type { Kit, Pedido, Producto } from '@/domain/tienda/types'
+import { codigoRetiro, pagoDe, referenciaPago } from '@/domain/pagos/pasarela'
 import { readStorage, writeStorage } from './storage'
 import type { TiendaRepository } from './tiendaRepository.types'
 
@@ -150,6 +151,12 @@ const PEDIDOS_INICIALES: Pedido[] = [
     total: 319600,
     estado: 'Cancelado',
     fecha: '2026-09-30',
+    puntoRetiro: 'Centro de Pinturas Colorlink - Poblado',
+    pago: { metodo: 'tarjeta', estado: 'Reembolsado', referencia: 'PAY-K7M2QX4R', monto: 319600, fecha: '2026-10-01T15:10:00.000Z', detalle: 'Mastercard ···· 4444' },
+    historial: [
+      { estado: 'Recibido', fecha: '2026-09-30T14:20:00.000Z' },
+      { estado: 'Cancelado', fecha: '2026-10-01T15:10:00.000Z' },
+    ],
   },
   {
     id: 'PED-1005',
@@ -162,6 +169,15 @@ const PEDIDOS_INICIALES: Pedido[] = [
     total: 879300,
     estado: 'Entregado',
     fecha: '2026-10-05',
+    puntoRetiro: 'Centro de Pinturas Colorlink - Chapinero',
+    codigoRetiro: '9RT4WB',
+    pago: { metodo: 'pse', estado: 'Aprobado', referencia: 'PAY-9RT4WB6H', monto: 879300, fecha: '2026-10-05T16:05:00.000Z', detalle: 'PSE · Bancolombia' },
+    historial: [
+      { estado: 'Recibido', fecha: '2026-10-05T16:05:00.000Z' },
+      { estado: 'En preparación', fecha: '2026-10-05T16:40:00.000Z' },
+      { estado: 'Listo para retiro', fecha: '2026-10-05T18:10:00.000Z' },
+      { estado: 'Entregado', fecha: '2026-10-06T15:20:00.000Z' },
+    ],
   },
   {
     id: 'PED-1004',
@@ -171,6 +187,10 @@ const PEDIDOS_INICIALES: Pedido[] = [
     total: 124900,
     estado: 'Recibido',
     fecha: '2026-10-29',
+    puntoRetiro: 'Centro de Pinturas Colorlink - El Prado',
+    codigoRetiro: 'D3F8LN',
+    pago: { metodo: 'nequi', estado: 'Aprobado', referencia: 'PAY-D3F8LN5C', monto: 124900, fecha: '2026-10-29T13:41:00.000Z', detalle: 'Nequi ···· 4821' },
+    historial: [{ estado: 'Recibido', fecha: '2026-10-29T13:41:00.000Z' }],
   },
   {
     id: 'PED-1003',
@@ -183,6 +203,13 @@ const PEDIDOS_INICIALES: Pedido[] = [
     total: 1133000,
     estado: 'En preparación',
     fecha: '2026-10-27',
+    puntoRetiro: 'Centro de Pinturas Colorlink - Chapinero',
+    codigoRetiro: 'X2H7PQ',
+    pago: { metodo: 'tarjeta', estado: 'Aprobado', referencia: 'PAY-X2H7PQ9M', monto: 1133000, fecha: '2026-10-27T15:30:00.000Z', detalle: 'Visa ···· 4242' },
+    historial: [
+      { estado: 'Recibido', fecha: '2026-10-27T15:30:00.000Z' },
+      { estado: 'En preparación', fecha: '2026-10-27T16:05:00.000Z' },
+    ],
   },
   {
     id: 'PED-1002',
@@ -192,6 +219,14 @@ const PEDIDOS_INICIALES: Pedido[] = [
     total: 437700,
     estado: 'Listo para retiro',
     fecha: '2026-10-22',
+    puntoRetiro: 'Centro de Pinturas Colorlink - Sur',
+    codigoRetiro: 'Q6V3TZ',
+    pago: { metodo: 'efectivo', estado: 'Pendiente', referencia: 'PAY-Q6V3TZ8J', monto: 437700, fecha: '2026-10-22T11:12:00.000Z', detalle: 'Pagas al retirar en la tienda' },
+    historial: [
+      { estado: 'Recibido', fecha: '2026-10-22T11:12:00.000Z' },
+      { estado: 'En preparación', fecha: '2026-10-22T11:35:00.000Z' },
+      { estado: 'Listo para retiro', fecha: '2026-10-22T13:05:00.000Z' },
+    ],
   },
   {
     id: 'PED-1001',
@@ -204,11 +239,26 @@ const PEDIDOS_INICIALES: Pedido[] = [
     total: 354700,
     estado: 'Entregado',
     fecha: '2026-08-20',
+    puntoRetiro: 'Centro de Pinturas Colorlink - El Prado',
+    codigoRetiro: 'M4C9RK',
+    pago: { metodo: 'tarjeta', estado: 'Aprobado', referencia: 'PAY-M4C9RK2W', monto: 354700, fecha: '2026-08-20T17:45:00.000Z', detalle: 'Visa ···· 4242' },
+    historial: [
+      { estado: 'Recibido', fecha: '2026-08-20T17:45:00.000Z' },
+      { estado: 'En preparación', fecha: '2026-08-20T18:10:00.000Z' },
+      { estado: 'Listo para retiro', fecha: '2026-08-20T19:30:00.000Z' },
+      { estado: 'Entregado', fecha: '2026-08-21T14:00:00.000Z' },
+    ],
   },
 ]
 
 function cargarPedidos(): Pedido[] {
   return readStorage<Pedido[]>(STORAGE_KEY, STORAGE_VERSION) ?? PEDIDOS_INICIALES
+}
+
+/** El historial con la etapa nueva al final, salvo que el pedido ya estuviera en ella. */
+function conEtapa(historial: Pedido['historial'], estado: string): NonNullable<Pedido['historial']> {
+  const previo = historial ?? []
+  return previo.at(-1)?.estado === estado ? previo : [...previo, { estado, fecha: new Date().toISOString() }]
 }
 
 function siguienteIdPedido(pedidos: Pedido[]): string {
@@ -228,18 +278,23 @@ export const tiendaRepositoryLocal: TiendaRepository = {
     return KITS
   },
 
-  async crearPedido(items, clienteNombre, clienteEmail, puntoRetiro) {
+  async crearPedido(items, clienteNombre, clienteEmail, puntoRetiro, extras) {
     const pedidos = cargarPedidos()
-    const total = items.reduce((sum, i) => sum + i.precioUnitario * i.cantidad, 0)
+    const subtotal = items.reduce((sum, i) => sum + i.precioUnitario * i.cantidad, 0)
+    const descuento = Math.min(Math.max(0, extras?.descuento ?? 0), subtotal)
     const nuevo: Pedido = {
       id: siguienteIdPedido(pedidos),
       clienteNombre,
       clienteEmail,
       items,
-      total,
+      total: subtotal - descuento,
       estado: 'Recibido',
       fecha: new Date().toISOString().slice(0, 10),
       puntoRetiro,
+      ...(descuento > 0 ? { cupon: extras?.cupon, descuento } : {}),
+      pago: extras?.pago,
+      codigoRetiro: extras?.codigoRetiro ?? codigoRetiro(),
+      historial: [{ estado: 'Recibido', fecha: new Date().toISOString() }],
     }
     writeStorage(STORAGE_KEY, STORAGE_VERSION, [nuevo, ...pedidos])
     return nuevo
@@ -261,7 +316,19 @@ export const tiendaRepositoryLocal: TiendaRepository = {
     const pedidos = cargarPedidos()
     const actual = pedidos.find((p) => p.id === id)
     if (!actual) return undefined
-    const actualizado = { ...actual, estado }
+    const actualizado = { ...actual, estado, historial: conEtapa(actual.historial, estado) }
+    writeStorage(STORAGE_KEY, STORAGE_VERSION, pedidos.map((p) => (p.id === id ? actualizado : p)))
+    return actualizado
+  },
+
+  async actualizarPagoPedido(id, estado) {
+    const pedidos = cargarPedidos()
+    const actual = pedidos.find((p) => p.id === id)
+    if (!actual) return undefined
+    const pago = pagoDe(actual)
+    // Al cobrar un pedido que se paga al retirar, el pago queda con su referencia como cualquier otro.
+    const referencia = pago.referencia === '—' ? referenciaPago() : pago.referencia
+    const actualizado = { ...actual, pago: { ...pago, estado, referencia, fecha: new Date().toISOString() } }
     writeStorage(STORAGE_KEY, STORAGE_VERSION, pedidos.map((p) => (p.id === id ? actualizado : p)))
     return actualizado
   },

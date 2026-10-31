@@ -1,61 +1,33 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, Sparkles, AlertTriangle, Pencil, Download, ListChecks, Home } from 'lucide-react'
+import { CheckCircle2, Sparkles, AlertTriangle, Pencil, FileDown, Loader2, ListChecks, Home } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Button from '@/shared/ui/Button'
 import ProcessTimeline from '@/shared/ui/ProcessTimeline'
 import DiagnosticoCard from '@/features/diagnostico/DiagnosticoCard'
 import FotoAnalizada from '@/features/diagnostico/FotoAnalizada'
 import { clasesDeDiagnostico } from '@/features/diagnostico/imagen'
+import { descargarResumenPdf } from '@/features/solicitudes/resumenPdf'
+import { useToast } from '@/shared/lib/toast'
 import type { Solicitud } from '@/domain/solicitud/types'
 import { etapaDelNegocio } from '@/domain/solicitud/estadoMachine'
 
 export default function Result({ solicitud, onEditar }: { solicitud: Solicitud; onEditar: () => void }) {
   const navigate = useNavigate()
-  const { data, recomendacion, id, diagnostico } = solicitud
+  const { data, recomendacion, diagnostico } = solicitud
 
-  const descargarResumen = () => {
-    const d = solicitud.diagnostico
-    const diagnosticoTexto = d
-      ? `DIAGNÓSTICO PRELIMINAR (${d.origen})
-Problema: ${d.patologia}${d.severidad ? ` — ${d.severidad}` : ''}
-Zona: ${d.zona}
-Confianza del análisis: ${d.confianza}%
-${d.resumen}
-Causa probable: ${d.causaProbable}
+  const { mostrarToast } = useToast()
+  const [generandoPdf, setGenerandoPdf] = useState(false)
 
-`
-      : ''
-    const contenido = `COLORLINK — Resumen de solicitud ${id}
-Fecha: ${solicitud.fechaSolicitud}
-
-CLIENTE
-Cliente: ${data.identificacion.cliente}
-Responsable: ${data.identificacion.responsable}
-
-PROYECTO
-Ciudad: ${data.proyecto.ciudad}
-Tipo de obra: ${data.proyecto.tipoObra}
-Área aproximada: ${data.proyecto.areaAprox} m²
-Superficie: ${data.tecnica.superficie}
-Ambiente: ${data.tecnica.ambiente}
-Condición: ${data.tecnica.condicion}
-Color/acabado: ${data.tecnica.colorAcabado}
-
-${diagnosticoTexto}SOLUCIÓN RECOMENDADA (preliminar)
-Tipo de solución: ${recomendacion.tipoSolucion}
-Producto: ${recomendacion.producto}
-Acabado: ${recomendacion.acabado}
-Cantidad estimada: ${recomendacion.cantidadEstimada}
-Aplicación: ${recomendacion.aplicacion}
-Tiempo estimado: ${recomendacion.tiempoEstimado}
-`
-    const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `colorlink-${id}.txt`
-    link.click()
-    URL.revokeObjectURL(url)
+  const descargarResumen = async () => {
+    setGenerandoPdf(true)
+    try {
+      await descargarResumenPdf(solicitud)
+    } catch {
+      mostrarToast('No pudimos generar el PDF. Inténtalo de nuevo.', 'error')
+    } finally {
+      setGenerandoPdf(false)
+    }
   }
 
   const resumenItems = [
@@ -171,8 +143,13 @@ Tiempo estimado: ${recomendacion.tiempoEstimado}
         <Button icon={<ListChecks size={17} />} onClick={() => navigate('/mis-solicitudes')}>
           Ver mis solicitudes
         </Button>
-        <Button variant="secondary" icon={<Download size={17} />} onClick={descargarResumen}>
-          Descargar resumen
+        <Button
+          variant="secondary"
+          icon={generandoPdf ? <Loader2 size={17} className="animate-spin" /> : <FileDown size={17} />}
+          onClick={descargarResumen}
+          disabled={generandoPdf}
+        >
+          {generandoPdf ? 'Generando PDF…' : 'Descargar PDF'}
         </Button>
         <Button variant="ghost" icon={<Home size={17} />} onClick={() => navigate('/')}>
           Volver al inicio

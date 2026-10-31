@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Menu, X, LogOut, ShoppingCart, Store, ShieldCheck, FolderKanban } from 'lucide-react'
+import { Menu, X, LogOut, ShoppingCart, Store, ShieldCheck, FolderKanban, Truck } from 'lucide-react'
 import Button from '@/shared/ui/Button'
 import Avatar from '@/shared/ui/Avatar'
 import Logo from '@/shared/brand/Logo'
@@ -9,6 +9,8 @@ import { useAuth } from '@/features/auth/AuthContext'
 import { useCart } from '@/features/tienda/CartContext'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
 import BuscadorCatalogo from '@/features/tienda/BuscadorCatalogo'
+import { usePedidoActivo } from '@/features/pagos/usePedidoActivo'
+import { ETIQUETA_CORTA } from '@/features/pagos/estadoPedido'
 
 const NAV_LINKS_CLIENTE: { to: string; label: string; badge?: string }[] = [
   { to: '/', label: 'Inicio' },
@@ -27,6 +29,7 @@ export default function Header() {
   const { usuario, logout } = useAuth()
   const { totalItems, puntoRetiro } = useCart()
   const { proyectoActivo } = useSolicitudes()
+  const pedidoActivo = usePedidoActivo()
 
   const esAdmin = usuario?.rol === 'admin'
   const esCliente = usuario?.rol === 'cliente'
@@ -58,12 +61,24 @@ export default function Header() {
                 <ShieldCheck size={14} className="text-emerald-300" /> Garantía directa de fábrica Pintuco
               </span>
             </div>
-            <button
-              onClick={() => navigate('/puntos-de-retiro')}
-              className="shrink-0 rounded bg-white/10 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-accent transition-colors hover:bg-white/20"
-            >
-              Cambiar tienda
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              {pedidoActivo && (
+                <Link
+                  to={`/pedidos/${pedidoActivo.id}`}
+                  title="Rastrear tu pedido"
+                  className="hidden items-center gap-1.5 rounded bg-accent px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-navy uppercase transition-colors hover:bg-accent-dark sm:flex"
+                >
+                  <Truck size={12} aria-hidden="true" />
+                  Pedido {pedidoActivo.id} · {ETIQUETA_CORTA[pedidoActivo.estado] ?? pedidoActivo.estado}
+                </Link>
+              )}
+              <button
+                onClick={() => navigate('/puntos-de-retiro')}
+                className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-accent transition-colors hover:bg-white/20"
+              >
+                Cambiar tienda
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -184,6 +199,19 @@ export default function Header() {
       {open && esCliente && (
         <nav className="flex flex-col gap-1 border-t border-slate-200 bg-white px-4 py-3 lg:hidden" aria-label="Principal">
           <BuscadorCatalogo className="mb-2 md:hidden" onNavegar={() => setOpen(false)} />
+          {pedidoActivo && (
+            <Link
+              to={`/pedidos/${pedidoActivo.id}`}
+              onClick={() => setOpen(false)}
+              className="mb-1 flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-sm font-bold text-amber-900"
+            >
+              <Truck size={16} aria-hidden="true" />
+              Rastrear pedido {pedidoActivo.id}
+              <span className="ml-auto rounded bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-navy">
+                {ETIQUETA_CORTA[pedidoActivo.estado] ?? pedidoActivo.estado}
+              </span>
+            </Link>
+          )}
           {NAV_LINKS_CLIENTE.map((link) => (
             <NavLink
               key={link.to}

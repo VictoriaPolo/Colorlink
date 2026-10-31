@@ -88,6 +88,17 @@ export default function AdminLayout() {
     }
   }
 
+  const registrarPagoPedido: ContextoAdmin['registrarPagoPedido'] = async (id, estado) => {
+    try {
+      const actualizado = await tiendaRepository.actualizarPagoPedido(id, estado)
+      if (!actualizado) return
+      setPedidos((prev) => prev.map((p) => (p.id === id ? actualizado : p)))
+      mostrarToast(estado === 'Aprobado' ? `${id} quedó cobrado.` : `Reembolso de ${id} registrado.`)
+    } catch {
+      mostrarToast('No se pudo actualizar el pago. Inténtalo de nuevo.', 'error')
+    }
+  }
+
   const agregarNotaPedido: ContextoAdmin['agregarNotaPedido'] = async (id, texto) => {
     try {
       const actualizado = await tiendaRepository.agregarNotaPedido(id, identidad, texto)
@@ -122,7 +133,7 @@ export default function AdminLayout() {
     navigate('/login')
   }
 
-  const contexto: ContextoAdmin = { pedidos, cargandoPedidos, cambiarEstadoPedido, agregarNotaPedido, identidad, cambiarIdentidad }
+  const contexto: ContextoAdmin = { pedidos, cargandoPedidos, cambiarEstadoPedido, registrarPagoPedido, agregarNotaPedido, identidad, cambiarIdentidad }
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-muted lg:flex-row">

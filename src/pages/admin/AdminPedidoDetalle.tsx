@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, MapPin, NotebookPen, Package } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CreditCard, KeyRound, MapPin, NotebookPen, Package } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Button from '@/shared/ui/Button'
 import Avatar from '@/shared/ui/Avatar'
@@ -8,16 +8,21 @@ import { SkeletonCardList } from '@/shared/ui/Skeleton'
 import { controlClass } from '@/shared/ui/FormField'
 import { fechaConHora, fechaCorta, formatoCOP } from '@/shared/lib/formato'
 import { useContextoAdmin } from '@/features/admin/ContextoAdmin'
+import PagoChip from '@/features/pagos/PagoChip'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 import { puntosDeRetiro } from '@/data/puntosDeRetiro'
+import { NOMBRE_METODO } from '@/domain/pagos/tipos'
+import { pagoDe } from '@/domain/pagos/pasarela'
 import { ESTADOS_PEDIDO, type Pedido } from '@/domain/tienda/types'
 
 export default function AdminPedidoDetalle() {
   const { id } = useParams<{ id: string }>()
-  const { pedidos, cambiarEstadoPedido, agregarNotaPedido } = useContextoAdmin()
+  const { pedidos, cambiarEstadoPedido, registrarPagoPedido, agregarNotaPedido } = useContextoAdmin()
   const [pedido, setPedido] = useState<Pedido | undefined | null>(null)
   const [nota, setNota] = useState('')
   const [guardandoNota, setGuardandoNota] = useState(false)
+  const [confirmandoReembolso, setConfirmandoReembolso] = useState(false)
+  const [actualizandoPago, setActualizandoPago] = useState(false)
 
   // Se busca primero en lo que ya cargó la consola (ContextoAdmin) para
   // reflejar cambios de estado al instante; si no está ahí (entrada directa
@@ -51,6 +56,18 @@ export default function AdminPedidoDetalle() {
 
   const punto = pedido.puntoRetiro ? puntosDeRetiro.find((p) => p.nombre === pedido.puntoRetiro) : undefined
   const notas = [...(pedido.notas ?? [])].sort((a, b) => b.fecha.localeCompare(a.fecha))
+  const pago = pagoDe(pedido)
+  const cancelado = pedido.estado === 'Cancelado'
+  // Un pedido que ya se entregó con el pago pendiente, o uno cancelado que ya estaba pagado, deja una tarea para el equipo.
+  const pendienteDeCobro = pago.estado === 'Pendiente' && pedido.estado === 'Entregado'
+  const pendienteDeReembolso = pago.estado === 'Aprobado' && cancelado
+
+  const cambiarPago = async (estado: 'Aprobado' | 'Reembolsado') => {
+    setActualizandoPago(true)
+    await registrarPagoPedido(pedido.id, estado)
+    setActualizandoPago(false)
+    setConfirmandoReembolso(false)
+  }
 
   const agregarNota = async (e: FormEvent) => {
     e.preventDefault()
@@ -108,7 +125,13 @@ export default function AdminPedidoDetalle() {
                 </li>
               ))}
             </ul>
-            <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+            {!!pedido.descuento && (
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-sm text-green-700">
+                <span>Descuento{pedido.cupon ? ` (cupón ${pedido.cupon})` : ''}</span>
+                <span className="font-semibold tabular-nums">− {formatoCOP.format(pedido.descuento)}</span>
+              </div>
+            )}
+            <div className={`${pedido.descuento ? 'mt-2' : 'mt-3 border-t border-slate-100 pt-3'} flex items-center justify-between`}>
               <span className="text-sm font-bold text-navy">Total</span>
               <span className="text-lg font-extrabold text-navy tabular-nums">{formatoCOP.format(pedido.total)}</span>
             </div>
@@ -133,6 +156,85 @@ export default function AdminPedidoDetalle() {
         </div>
 
         <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+          <Card className="p-5">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-navy">
+              <CreditCard size={17} /> Pago
+            </h2>
+            <dl className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-500">Estado</dt>
+                <dd>
+                  <PagoChip estado={pago.estado} />
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Medio</dt>
+                <dd className="text-right font-semibold text-navy">{NOMBRE_METODO[pago.metodo]}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Detalle</dt>
+                <dd className="text-right text-navy">{pago.detalle}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Referencia</dt>
+                <dd className="font-mono text-xs font-bold text-navy">{pago.referencia}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Monto</dt>
+                <dd className="font-bold text-navy tabular-nums">{formatoCOP.format(pago.monto)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Actualizado</dt>
+                <dd className="text-right text-navy">{fechaConHora(pago.fecha)}</dd>
+              </div>
+            </dl>
+
+            {(pendienteDeCobro || pendienteDeReembolso) && (
+              <p role="status" className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                {pendienteDeCobro
+                  ? 'El pedido ya se entregó y su pago sigue pendiente: márcalo como cobrado.'
+                  : 'El pedido se canceló y su pago estaba aprobado: registra el reembolso.'}
+              </p>
+            )}
+
+            {pago.estado === 'Pendiente' && !cancelado && (
+              <Button className="mt-4" size="sm" fullWidth disabled={actualizandoPago} onClick={() => cambiarPago('Aprobado')}>
+                {actualizandoPago ? 'Guardando…' : 'Marcar como cobrado'}
+              </Button>
+            )}
+            {pago.estado === 'Aprobado' &&
+              (confirmandoReembolso ? (
+                <div className="mt-4 rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-body">
+                    ¿Registrar el reembolso de <strong className="text-navy">{formatoCOP.format(pago.monto)}</strong>? Esto solo lo deja anotado: la devolución del dinero se gestiona aparte.
+                  </p>
+                  <div className="mt-2.5 flex gap-2">
+                    <Button size="sm" variant="secondary" disabled={actualizandoPago} onClick={() => setConfirmandoReembolso(false)}>
+                      No
+                    </Button>
+                    <Button size="sm" disabled={actualizandoPago} onClick={() => cambiarPago('Reembolsado')}>
+                      {actualizandoPago ? 'Guardando…' : 'Sí, registrar'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button className="mt-4" size="sm" variant={pendienteDeReembolso ? 'primary' : 'secondary'} fullWidth onClick={() => setConfirmandoReembolso(true)}>
+                  Registrar reembolso
+                </Button>
+              ))}
+          </Card>
+
+          {pedido.codigoRetiro && !cancelado && (
+            <Card className="p-5">
+              <h2 className="mb-1 flex items-center gap-2 text-base font-bold text-navy">
+                <KeyRound size={17} /> Código de retiro
+              </h2>
+              <p className="mb-3 text-xs text-slate-400">El cliente lo muestra en la tienda: compáralo antes de entregar.</p>
+              <p className="rounded-lg bg-navy py-2.5 text-center font-mono text-2xl font-extrabold tracking-[0.25em] text-white">{pedido.codigoRetiro}</p>
+            </Card>
+          )}
+
           <Card className="p-5">
             <h2 className="mb-4 text-base font-bold text-navy">Cliente</h2>
             <div className="flex items-center gap-3">

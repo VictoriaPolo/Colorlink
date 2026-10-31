@@ -37,6 +37,16 @@ proyecto de Supabase y darle sus credenciales a la app.
    Crea `perfiles` (el rol de cada cuenta), `extras_solicitud` (quién creó cada
    solicitud, su diagnóstico por imagen, quién la atiende y las notas internas) y
    las políticas para cuentas con sesión. Se puede correr más de una vez.
+8. **Pagos y rastreo de pedidos**: pega y corre
+   [`supabase/schema_pagos.sql`](../supabase/schema_pagos.sql). Agrega a `pedidos` el pago
+   (medio, estado, referencia y últimos cuatro dígitos; nunca la tarjeta completa), el cupón,
+   el código de retiro y el historial de etapas con el que el cliente rastrea su pedido. Sin él
+   los pedidos se siguen guardando, pero sin esos datos. Se puede correr más de una vez.
+
+> **¿Ya tenías la base creada con una versión anterior?** Pega y corre solo
+> [`supabase/actualizar_base.sql`](../supabase/actualizar_base.sql): reúne, en el orden correcto, lo
+> que le falta (columnas de pedidos, cuentas y roles, y pagos), no borra nada y se puede correr
+> varias veces.
 
 ## 3. Obtener la URL y la API key
 
@@ -77,7 +87,15 @@ Con Supabase configurado, el inicio de sesión y el registro usan **Supabase Aut
 
 **Correo y contraseña** funcionan sin más pasos. En **Authentication → Providers →
 Email** decide si exiges confirmar el correo: si lo exiges, después de registrarse
-la persona ve un aviso para revisar su bandeja y entra al confirmar.
+la persona ve un aviso para revisar su bandeja y entra al confirmar. Para una
+presentación conviene **desactivar "Confirm email"**: así quien se registra entra de
+inmediato y su solicitud aparece enseguida en la consola del equipo.
+
+**Cuentas de demostración.** Con Supabase configurado, las cuentas de demostración y los
+botones "Entrar como cliente / equipo" se **apagan**: serían una puerta pública a la consola con
+los datos de todos. Si los quieres para una presentación, pon `VITE_MODO_DEMO=true` (en
+`.env.local` y en las variables de Vercel). Sin Supabase siempre están, y la consola avisa que
+solo muestra lo guardado en ese navegador.
 
 **URLs permitidas.** En **Authentication → URL Configuration** pon:
 - *Site URL*: la dirección de la app publicada.
@@ -143,8 +161,14 @@ Con `.env.local` configurado, el SQL del paso 2.7 corrido y `npm run dev` corrie
    una nota. Confirma en `extras_solicitud` que cambiaron `asignado_a` y `notas`.
 5. **Avanzar/Resolver**: usa "Avanzar" (o "Resolver" en el último paso) y confirma que
    `solicitudes.estado` cambió y que se insertó una fila en `historial_estados`.
-6. **Pedidos**: compra algo desde el catálogo y, como equipo, cambia su estado en
-   `/admin/pedidos`; confirma el cambio en `pedidos.estado`.
+6. **Pedidos y pagos**: compra algo desde el catálogo y paga con una tarjeta de prueba
+   (por ejemplo `4242 4242 4242 4242`); confirma que `pedidos` guardó `pago` (con la
+   referencia y los últimos cuatro dígitos, sin el número completo), `codigo_retiro` e
+   `historial`. Como equipo, cambia su estado en `/admin/pedidos`, confirma el cambio en
+   `pedidos.estado` y que el cliente lo ve avanzar en `/pedidos/PED-…`.
+7. **Varias cuentas**: registra una cuenta desde otro navegador o equipo y haz una solicitud:
+   debe aparecer en la consola del equipo (si no aparece, la app sigue en modo local: revisa
+   las variables en Vercel y vuelve a desplegar, porque se leen al construir).
 
 Anota en tu bitácora de la jornada cualquier error que aparezca en cada paso
 (por ejemplo, un `403` suele ser una política RLS mal aplicada; un `23503` es

@@ -1,12 +1,15 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, FileDown, Loader2 } from 'lucide-react'
 import Card from '@/shared/ui/Card'
 import Badge from '@/shared/ui/Badge'
 import Button from '@/shared/ui/Button'
 import ProcessTimeline from '@/shared/ui/ProcessTimeline'
 import { fechaCorta } from '@/shared/lib/formato'
+import { useToast } from '@/shared/lib/toast'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
 import { DatosProyecto, EvidenciaYDiagnostico, HistorialEstados, SolucionRecomendada } from '@/features/solicitudes/detalle/bloques'
+import { descargarResumenPdf } from '@/features/solicitudes/resumenPdf'
 import { etapaDelNegocio } from '@/domain/solicitud/estadoMachine'
 
 /** El seguimiento de una solicitud, visto por el cliente. El equipo tiene su propia vista en /admin. */
@@ -14,7 +17,21 @@ export default function SolicitudDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { obtenerSolicitud } = useSolicitudes()
+  const { mostrarToast } = useToast()
+  const [generandoPdf, setGenerandoPdf] = useState(false)
   const solicitud = id ? obtenerSolicitud(id) : undefined
+
+  const descargarResumen = async () => {
+    if (!solicitud) return
+    setGenerandoPdf(true)
+    try {
+      await descargarResumenPdf(solicitud)
+    } catch {
+      mostrarToast('No pudimos generar el PDF. Inténtalo de nuevo.', 'error')
+    } finally {
+      setGenerandoPdf(false)
+    }
+  }
 
   if (!solicitud) {
     return (
@@ -45,7 +62,18 @@ export default function SolicitudDetail() {
             {data.proyecto.tipoObra} · {data.proyecto.ciudad} · {fechaCorta(solicitud.fechaSolicitud)}
           </p>
         </div>
-        <Badge estado={solicitud.estado} />
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge estado={solicitud.estado} />
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={generandoPdf ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
+            onClick={descargarResumen}
+            disabled={generandoPdf}
+          >
+            {generandoPdf ? 'Generando PDF…' : 'Descargar PDF'}
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-6 p-6">

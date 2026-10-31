@@ -70,6 +70,10 @@ export function textoParaVoz(texto: string): string {
       .replace(/[*_`#>~"“”«»]+/g, '')
       // "producto(s)" se dice "productos", no "producto, s".
       .replace(/(\p{L})\((s|es)\)/gu, '$1$2')
+      // El código de retiro y los números de tarjeta se dictan carácter por carácter: "Visa ···· 4242" → "Visa terminada en 4 2 4 2".
+      .replace(/(c[oó]digo de retiro:?\s+)([A-Z0-9]{6})\b/g, (_, antes: string, codigo: string) => antes + [...codigo].join(' '))
+      .replace(/\s*·{3,}\s*(\d{4})\b/g, (_, ultimos: string) => ` terminada en ${[...ultimos].join(' ')}`)
+      .replace(/\b\d{4}(?: \d{4}){3}\b/g, (numero: string) => numero.split(' ').map((grupo) => [...grupo].join(' ')).join(', '))
       // Códigos: "PED-1006" → "P E D 1006" (letra por letra, como se dictan).
       .replace(/\b([A-Z]{2,4})-(\d+)\b/g, (_, letras: string, numero: string) => `${[...letras].join(' ')} ${numero}`)
       .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (fecha, anio: string, mes: string, dia: string) =>
