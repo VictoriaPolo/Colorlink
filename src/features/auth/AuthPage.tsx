@@ -311,18 +311,40 @@ export default function AuthPage({ modo }: { modo: 'login' | 'registro' }) {
                 <div className="mt-6 flex flex-col gap-3">
                   <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Prototipo académico · probar sin crear cuenta</p>
 
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
-                    <Button
+                  <div className="overflow-hidden rounded-lg border border-brand-100 bg-brand-50/60">
+                    <div className="flex items-start gap-3 p-4">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-primary shadow-soft">
+                        <Store size={18} aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="inline-flex rounded bg-primary px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-white uppercase">
+                          Experiencia cliente
+                        </span>
+                        <p className="mt-1.5 text-xs leading-relaxed text-body">
+                          Diagnóstico con una foto, tienda, simulador de color y seguimiento de tus solicitudes.
+                        </p>
+                      </div>
+                    </div>
+                    <button
                       type="button"
-                      variant="secondary"
-                      size="sm"
-                      fullWidth
-                      icon={<User size={14} />}
                       disabled={enviando}
                       onClick={() => entrarDemo('cliente')}
+                      aria-describedby="entrada-cliente-desc"
+                      className="flex w-full items-center justify-center gap-2 border-t border-brand-100 bg-white/70 py-2.5 text-sm font-bold text-primary transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Entrar como cliente
-                    </Button>
+                      {enviando && entrandoRol === 'cliente' ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" aria-hidden="true" /> Entrando…
+                        </>
+                      ) : (
+                        <>
+                          <User size={15} aria-hidden="true" /> Entrar como cliente
+                        </>
+                      )}
+                    </button>
+                    <span id="entrada-cliente-desc" className="sr-only">
+                      Entra con una cuenta de demostración de cliente, sin necesidad de crear una cuenta.
+                    </span>
                   </div>
 
                   <div className="overflow-hidden rounded-lg bg-navy text-white">
