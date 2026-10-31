@@ -15,6 +15,8 @@ en tienda y le da al equipo una consola para atender cada solicitud.
 - **Consola del equipo** (`/admin`): resumen con indicadores, tablero de solicitudes por etapa,
   detalle con fotos y diagnóstico, asignación, notas internas, pedidos y clientes.
 - **Coli**, un asistente de voz y texto que responde con los pedidos y solicitudes del cliente.
+  Habla con la mejor voz que tenga el navegador (con Microsoft Edge, voces naturales como la de
+  Gonzalo, de Colombia) y se elige entre el tono natural y el de JARVIS.
 
 ## Empezar
 
@@ -33,8 +35,9 @@ Cuentas de demostración, para probar sin registrarte:
 | Equipo | `admin@colorlink.com` | `admin123` |
 
 En la pantalla de acceso también hay botones "Entrar como cliente" y "Entrar como equipo". Los
-botones de Google y Facebook funcionan de verdad solo con Supabase; sin él abren un diálogo marcado
-como modo demostración.
+botones de Google y Facebook abren la ventana real de cada uno (la lista de cuentas) cuando el sitio
+tiene su identificador o usa Supabase; sin ninguno abren un diálogo marcado como modo demostración.
+Cómo activarlos: [`docs/CUENTAS_SOCIALES.md`](docs/CUENTAS_SOCIALES.md).
 
 ## Scripts
 
@@ -56,6 +59,8 @@ está en [`docs/SUPABASE.md`](docs/SUPABASE.md).
 - [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md): cómo está organizado el código, cómo funciona el
   diagnóstico y qué se dejó fuera a propósito.
 - [`docs/SUPABASE.md`](docs/SUPABASE.md): conectar la base de datos y los proveedores de acceso.
+- [`docs/CUENTAS_SOCIALES.md`](docs/CUENTAS_SOCIALES.md): activar los botones de Google y Facebook
+  (sin Supabase) y ponerlos en Vercel.
 - [`docs/DIAGRAMA.md`](docs/DIAGRAMA.md): el modelo relacional completo.
 
 ## Sobre el diagnóstico

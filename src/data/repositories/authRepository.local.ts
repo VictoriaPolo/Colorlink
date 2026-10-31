@@ -99,7 +99,12 @@ export const authRepositoryLocal: AuthRepository = {
     }
     // Misma persona: si el correo ya tiene cuenta, se entra a ella (como hacen Google y Facebook).
     const existente = guardados().find((u) => u.email === correo)
-    if (existente) return abrirSesion(publico(existente))
+    if (existente) {
+      if (existente.avatarUrl || !identidad.avatarUrl) return abrirSesion(publico(existente))
+      const conFoto = { ...existente, avatarUrl: identidad.avatarUrl }
+      writeStorage(USUARIOS_KEY, VERSION, guardados().map((u) => (u.email === correo ? conFoto : u)))
+      return abrirSesion(publico(conFoto))
+    }
 
     const nuevo: UsuarioGuardado = {
       id: `usr-${crypto.randomUUID().slice(0, 8)}`,
@@ -107,6 +112,7 @@ export const authRepositoryLocal: AuthRepository = {
       email: correo,
       rol: 'cliente',
       proveedor,
+      avatarUrl: identidad.avatarUrl,
     }
     writeStorage(USUARIOS_KEY, VERSION, [...guardados(), nuevo])
     return abrirSesion(publico(nuevo))

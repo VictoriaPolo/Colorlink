@@ -4,6 +4,7 @@ import type { EstadoLlamada, TurnoLlamada } from './llamada'
 /** Navegador simulado: reconocedor de voz y síntesis sin micrófono ni audio real. */
 const reconocedores: FakeReconocedor[] = []
 const hablado: string[] = []
+const frasesDichas: FakeFrase[] = []
 
 class FakeReconocedor {
   lang = ''
@@ -29,9 +30,12 @@ class FakeReconocedor {
 class FakeFrase {
   text: string
   lang = ''
-  voice = null
+  voice: { name: string } | null = null
+  rate = 1
+  pitch = 1
   onend: (() => void) | null = null
   onerror: (() => void) | null = null
+  onboundary: (() => void) | null = null
   constructor(text: string) {
     this.text = text
   }
@@ -50,10 +54,13 @@ beforeAll(async () => {
   Object.assign(window, { webkitSpeechRecognition: FakeReconocedor, SpeechSynthesisUtterance: FakeFrase })
   Object.defineProperty(window, 'speechSynthesis', {
     value: {
-      getVoices: () => [],
+      getVoices: () => [{ name: 'Microsoft Gonzalo Online (Natural) - Spanish (Colombia)', lang: 'es-CO', voiceURI: 'gonzalo' }],
       cancel: vi.fn(),
+      addEventListener: () => {},
+      removeEventListener: () => {},
       speak: (frase: FakeFrase) => {
         hablado.push(frase.text)
+        frasesDichas.push(frase)
         setTimeout(() => frase.onend?.(), 50)
       },
     },
@@ -66,6 +73,8 @@ beforeEach(() => {
   vi.useFakeTimers()
   reconocedores.length = 0
   hablado.length = 0
+  frasesDichas.length = 0
+  window.localStorage.clear()
 })
 
 afterEach(() => vi.useRealTimers())
@@ -93,7 +102,8 @@ const terminarDeHablar = () => vi.advanceTimersByTimeAsync(320)
 describe('iniciarLlamada', () => {
   it('saluda, responde lo que se dice y vuelve a escuchar', async () => {
     const { control, estados, turnos } = llamar()
-    expect(hablado[0]).toContain('Hola Laura, soy Coli')
+    await vi.advanceTimersByTimeAsync(0) // la voz se elige en cuanto el navegador la tiene lista
+    expect(hablado.join(' ')).toMatch(/, Laura\. Soy Coli, tu asistente de Color link\./)
 
     await terminarDeHablar()
     expect(estados.at(-1)).toBe('escuchando')
@@ -108,6 +118,25 @@ describe('iniciarLlamada', () => {
     expect(estados.at(-1)).toBe('escuchando')
     control.colgar()
     expect(estados.at(-1)).toBe('finalizada')
+  })
+
+  it('habla con la mejor voz disponible y el tono JARVIS', async () => {
+    const { control } = llamar()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(frasesDichas[0].voice?.name).toContain('Gonzalo')
+    expect(frasesDichas[0]).toMatchObject({ lang: 'es-CO', rate: 0.96, pitch: 0.92 })
+    control.colgar()
+  })
+
+  it('al interrumpir, Coli calla y pasa a escuchar', async () => {
+    const { control, estados } = llamar()
+    await vi.advanceTimersByTimeAsync(10) // ya empezó a hablar y todavía no termina
+    expect(estados.at(-1)).toBe('hablando')
+    control.interrumpir()
+    await vi.advanceTimersByTimeAsync(260)
+    expect(estados.at(-1)).toBe('escuchando')
+    expect(reconocedores).toHaveLength(1)
+    control.colgar()
   })
 
   it('usa lo entendido aunque el navegador no marque la frase como final', async () => {

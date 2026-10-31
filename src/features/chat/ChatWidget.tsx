@@ -12,7 +12,8 @@ import {
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
 import { tiendaRepositoryLocal } from '@/data/repositories/tiendaRepository.local'
 import type { Pedido, Producto } from '@/domain/tienda/types'
-import { useDictado, hablar, callar } from './voz'
+import { useDictado } from './voz'
+import { hablar, callar } from './sintesis'
 import type { TurnoLlamada } from './llamada'
 import LlamadaColi from './LlamadaColi'
 

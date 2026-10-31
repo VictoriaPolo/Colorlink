@@ -70,4 +70,17 @@ describe('authRepositoryLocal — Google y Facebook en modo demostración', () =
     expect(r).toMatchObject({ ok: false })
     expect(r.ok === false && r.error).toContain('Google')
   })
+
+  it('guarda la foto que entrega el proveedor y se la agrega a una cuenta que no la tenía', async () => {
+    const conFoto = { ...identidad, avatarUrl: 'https://foto/luis.jpg' }
+    expect(await auth.iniciarConProveedor('google', conFoto)).toMatchObject({ ok: true, usuario: { avatarUrl: 'https://foto/luis.jpg' } })
+    expect((await auth.restaurarSesion())?.avatarUrl).toBe('https://foto/luis.jpg')
+
+    // Una cuenta creada con correo recibe la foto la primera vez que entra con Google.
+    await auth.registrar({ nombre: 'Ana Gómez', email: 'ana@gmail.com', password: 'pintura2026' })
+    await auth.cerrarSesion()
+    const r = await auth.iniciarConProveedor('google', { nombre: 'Ana Gómez', email: 'ANA@gmail.com', avatarUrl: 'https://foto/ana.jpg' })
+    expect(r).toMatchObject({ ok: true, usuario: { email: 'ana@gmail.com', proveedor: 'correo', avatarUrl: 'https://foto/ana.jpg' } })
+    expect(JSON.parse(window.localStorage.getItem('colorlink:usuarios')!).data).toHaveLength(2)
+  })
 })

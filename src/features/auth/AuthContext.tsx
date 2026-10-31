@@ -3,7 +3,7 @@ import type { Usuario } from './types'
 import { authRepository } from '@/data/repositories/authRepository'
 import type {
   DatosRegistro,
-  IdentidadDemo,
+  IdentidadSocial,
   ProveedorSocial,
   ResultadoAuth,
 } from '@/data/repositories/authRepository.types'
@@ -11,11 +11,11 @@ import type {
 interface AuthContextValue {
   usuario: Usuario | null
   cargando: boolean
-  /** true si Google/Facebook son reales (Supabase Auth); false en el modo demostración. */
+  /** true si Google/Facebook entran por Supabase Auth (redirección). */
   proveedoresReales: boolean
   login: (email: string, password: string) => Promise<ResultadoAuth>
   registrar: (datos: DatosRegistro) => Promise<ResultadoAuth>
-  loginConProveedor: (proveedor: ProveedorSocial, identidadDemo?: IdentidadDemo) => Promise<ResultadoAuth>
+  loginConProveedor: (proveedor: ProveedorSocial, identidad?: IdentidadSocial) => Promise<ResultadoAuth>
   logout: () => Promise<void>
 }
 
@@ -52,8 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       proveedoresReales: authRepository.proveedoresReales,
       login: async (email, password) => abrir(await authRepository.iniciarSesion(email, password)),
       registrar: async (datos) => abrir(await authRepository.registrar(datos)),
-      loginConProveedor: async (proveedor, identidadDemo) =>
-        abrir(await authRepository.iniciarConProveedor(proveedor, identidadDemo)),
+      loginConProveedor: async (proveedor, identidad) => abrir(await authRepository.iniciarConProveedor(proveedor, identidad)),
       logout: async () => {
         await authRepository.cerrarSesion()
         setUsuario(null)

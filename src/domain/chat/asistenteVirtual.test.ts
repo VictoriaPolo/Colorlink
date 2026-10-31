@@ -48,6 +48,12 @@ describe('generarRespuestaChat', () => {
     expect(generarRespuestaChat('¿dónde va mi pedido?', { pedidos: [pedidoDemo] }).texto).toContain('PED-1001')
   })
 
+  it('cuenta los productos del pedido en singular o plural', () => {
+    const dos = { ...pedidoDemo, items: [...pedidoDemo.items, { productoId: 2, nombre: 'Koraza', precioUnitario: 142900, cantidad: 1 }] }
+    expect(generarRespuestaChat('¿dónde va mi pedido?', { pedidos: [pedidoDemo] }).texto).toContain('1 producto por')
+    expect(generarRespuestaChat('¿dónde va mi pedido?', { pedidos: [dos] }).texto).toContain('2 productos por')
+  })
+
   it('avisa cuando no hay pedidos asociados', () => {
     expect(generarRespuestaChat('dónde va mi pedido').ruta).toBe('/catalogo')
   })

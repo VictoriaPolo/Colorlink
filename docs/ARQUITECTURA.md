@@ -46,7 +46,8 @@ src/
                   kits, buscador con sugerencias
     chat/         Widget del asistente virtual "Coli" (solo clientes): dictado por voz,
                   respuestas leídas en voz alta y llamada de voz manos libres con avatar
-                  animado (Web Speech API, sin librerías ni proveedor externo)
+                  animado (Web Speech API, sin librerías ni proveedor externo); la voz se
+                  elige y el texto se prepara para sonar natural (ver "La voz de Coli")
     auth/         Inicio de sesión y registro (una sola pantalla), botones de Google y
                   Facebook, sesión, ruta protegida
   domain/
@@ -108,9 +109,12 @@ a su consola, y un cliente que escribe `/admin` vuelve al inicio.
 
 - **Local** (sin Supabase): las cuentas se guardan en el navegador con la contraseña
   derivada con PBKDF2-SHA256 (100 000 iteraciones y sal propia), nunca en texto plano. Las
-  cuentas de demostración (`mockUsuarios.ts`) siempre existen. Google y Facebook abren un
-  diálogo marcado como **modo demostración** que simula la identidad: sin Supabase no hay
-  forma de hablar con esos proveedores.
+  cuentas de demostración (`mockUsuarios.ts`) siempre existen. Google y Facebook abren la
+  **ventana real del proveedor** (`features/auth/proveedoresSociales.ts`, con sus librerías
+  oficiales de navegador) si el sitio tiene su identificador público (`VITE_GOOGLE_CLIENT_ID`,
+  `VITE_FACEBOOK_APP_ID`) y crean una cuenta local con el nombre, el correo y la foto; sin
+  identificador abren un diálogo marcado como **modo demostración**. Ningún servidor verifica
+  esa sesión: ver `docs/CUENTAS_SOCIALES.md`.
 - **Supabase Auth**: correo y contraseña, y Google/Facebook reales (`signInWithOAuth`). El
   rol sale de la tabla `perfiles`. Configurar los proveedores se explica en
   `docs/SUPABASE.md`.
@@ -120,6 +124,32 @@ a su consola, y un cliente que escribe `/admin` vuelve al inicio.
 suyas, y las solicitudes de ejemplo sin dueño solo las ven las cuentas de demostración.
 Abrir por URL la solicitud de otro cliente muestra "No encontramos la solicitud". Los
 clientes tampoco pueden avanzar el estado: eso es del equipo.
+
+## La voz de Coli
+
+Coli habla con la síntesis de voz del navegador (Web Speech API): sin claves ni servicios de
+pago. Lo que decide cuánto suena a persona es, sobre todo, **qué voz se elige y qué texto se le
+da**:
+
+- **Elección de la voz** (`chat/sintesis.ts`). Los navegadores traen voces muy distintas: Edge
+  trae decenas de voces neuronales en español ("Online (Natural)", con Gonzalo y Salomé de
+  Colombia) y Chrome en Windows trae las de Google y dos del sistema (Raul y Sabina).
+  `elegirVoz` puntúa cada voz en español —calidad (neuronal > de red > del sistema), español de
+  Colombia o neutro, voz masculina— y usa la mejor; la persona puede cambiarla y se recuerda en
+  ese navegador. Si la mejor no es neuronal, el panel de voz sugiere abrir la página en Edge.
+- **Tonos.** *Natural* deja el ritmo y el tono de la voz; *JARVIS* los baja un poco (más pausado y
+  más grave) para un aire sereno de asistente.
+- **Texto pensado para oírse** (`chat/textoParaVoz.ts`). Un motor de voz lee "$ 89.900" como
+  "89 punto 900" y "PED-1006" como "ped guion mil seis". Antes de hablar, los precios pasan a
+  pesos con letras, los códigos se deletrean, "8:00 a. m." se dice "8 de la mañana", las fechas
+  se dicen completas y no se deletrea la marca. Se lee frase por frase (cada punto es una pausa)
+  y, en la llamada, una respuesta larga se resume en cuatro frases y avisa que el resto quedó
+  escrito.
+- **En la llamada**, la boca del avatar sigue el ritmo de las palabras cuando la voz las avisa, y
+  el botón *Interrumpir* corta a Coli para hablar de inmediato.
+
+Lo que no hace: una voz de IA como la de JARVIS en la película necesita un servicio de síntesis
+en la nube, con su clave y su costo. La voz del navegador es lo mejor que se logra sin eso.
 
 ## Diagnóstico por imagen
 
@@ -237,9 +267,11 @@ sin cambiar el esquema de `pedidos`. El punto de retiro elegido también vive en
 - `domain/solicitud/panel.test.ts` — prioridad, filtros, resumen, actividad y clientes de la consola
 - `data/repositories/solicitudesRepository.test.ts` y `.gestion.test.ts` — persistencia, dueño, diagnóstico, asignación, notas y almacenamiento lleno
 - `data/repositories/authRepository.local.test.ts` y `features/auth/schemas.test.ts` — cuentas, contraseñas y validación del registro
+- `features/auth/proveedoresSociales.test.ts` — ventana de Google y Facebook (cuenta elegida, cierre, bloqueo, correo sin verificar)
 - `features/auth/mockUsuarios.test.ts` — validación de credenciales y asignación de rol
 - `features/solicitudes/wizard/WizardPage.test.tsx` — recorrido completo del asistente (integración)
 - `domain/tienda/calculadora.test.ts` — redondeo de galones de la calculadora de pintura
 - `domain/chat/asistenteVirtual.test.ts` — respuestas del asistente según la pregunta y los pedidos, y rechazo de temas ajenos
-- `features/chat/llamada.test.ts` — turnos de la llamada de voz (escuchar, responder, silencio, silenciar)
+- `features/chat/llamada.test.ts` — turnos de la llamada de voz (escuchar, responder, silencio, silenciar, interrumpir)
+- `features/chat/sintesis.test.ts` y `textoParaVoz.test.ts` — elección de la mejor voz (Edge y Chrome) y texto preparado para oírse
 - `shared/lib/formato.test.ts` — pesos y fechas

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { callar, cargarVoces } from './sintesis'
 
 /** El reconocedor no viene en lib.dom (solo sus eventos): tipo mínimo de lo que se usa. */
 export interface Reconocedor {
@@ -77,7 +78,7 @@ export function useDictado(onFrase: (texto: string) => void) {
   useEffect(() => {
     // Chrome carga las voces en diferido: pedirlas al montar deja lista la
     // voz en español para la primera respuesta leída.
-    if ('speechSynthesis' in window) window.speechSynthesis.getVoices()
+    void cargarVoces()
     // Saber desde ya si el micrófono está bloqueado, para avisarlo en el botón.
     let vivo = true
     microfonoBloqueado().then((b) => vivo && setBloqueado(b))
@@ -125,26 +126,4 @@ export function useDictado(onFrase: (texto: string) => void) {
   const detener = () => reconocedorRef.current?.stop()
 
   return { motivo, escuchando, parcial, error, escuchar, detener }
-}
-
-/** Frase lista para leer con una voz en español (colombiana si existe). */
-export function crearFrase(texto: string): SpeechSynthesisUtterance {
-  const frase = new SpeechSynthesisUtterance(
-    texto.replace(/\$\s?([\d.]+)/g, '$1 pesos').replace(/m²/g, 'metros cuadrados'),
-  )
-  frase.lang = 'es-CO'
-  const voces = window.speechSynthesis.getVoices()
-  frase.voice = voces.find((v) => v.lang === 'es-CO') ?? voces.find((v) => v.lang.startsWith('es')) ?? null
-  return frase
-}
-
-/** Lee la respuesta en voz alta. */
-export function hablar(texto: string) {
-  if (!('speechSynthesis' in window)) return
-  callar()
-  window.speechSynthesis.speak(crearFrase(texto))
-}
-
-export function callar() {
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel()
 }

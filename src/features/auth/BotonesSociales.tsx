@@ -4,6 +4,7 @@ import { IconoFacebook, IconoGoogle } from '@/shared/brand/IconosProveedor'
 import Button from '@/shared/ui/Button'
 import type { ProveedorSocial, ResultadoAuth } from '@/data/repositories/authRepository.types'
 import { useAuth } from './AuthContext'
+import { ErrorAcceso, abrirVentanaProveedor, mensajeDeError, modoProveedor, precargarProveedor } from './proveedoresSociales'
 import { erroresPorCampo, identidadDemoSchema } from './schemas'
 
 const PROVEEDORES: { id: ProveedorSocial; nombre: string; Icono: typeof IconoGoogle }[] = [
@@ -17,20 +18,40 @@ interface Props {
   deshabilitado?: boolean
 }
 
-/** Botones "Continuar con Google/Facebook". Con Supabase Auth configurado abren
- * la ventana real del proveedor; sin él, piden un nombre y correo de prueba. */
+/** Botones "Continuar con Google/Facebook". Abren la ventana real del proveedor (la lista
+ * de cuentas) si el sitio tiene su clave o usa Supabase Auth; si no, piden un nombre y correo
+ * de prueba. */
 export default function BotonesSociales({ onResultado, deshabilitado }: Props) {
   const { loginConProveedor, proveedoresReales } = useAuth()
   const [enCurso, setEnCurso] = useState<ProveedorSocial | null>(null)
   const [demo, setDemo] = useState<ProveedorSocial | null>(null)
 
   const elegir = async (proveedor: ProveedorSocial) => {
-    if (!proveedoresReales) return setDemo(proveedor)
+    const modo = modoProveedor(proveedor, proveedoresReales)
+    if (modo === 'demo') return setDemo(proveedor)
     setEnCurso(proveedor)
+    if (modo === 'ventana') {
+      let resultado: ResultadoAuth
+      try {
+        resultado = await loginConProveedor(proveedor, await abrirVentanaProveedor(proveedor))
+      } catch (error) {
+        setEnCurso(null)
+        // Cerrar la ventana a propósito no es un error.
+        if (!(error instanceof ErrorAcceso && error.cancelado)) onResultado({ ok: false, error: mensajeDeError(error) })
+        return
+      }
+      setEnCurso(null)
+      return onResultado(resultado)
+    }
     const resultado = await loginConProveedor(proveedor)
     // Si salió bien, el navegador ya se está yendo a Google/Facebook: se deja el aviso de carga.
     if (!resultado.ok) setEnCurso(null)
     onResultado(resultado)
+  }
+
+  /** Al acercarse al botón se carga la librería, para abrir la ventana sin esperas al hacer clic. */
+  const precargar = (proveedor: ProveedorSocial) => {
+    if (modoProveedor(proveedor, proveedoresReales) === 'ventana') precargarProveedor(proveedor)
   }
 
   return (
@@ -41,6 +62,8 @@ export default function BotonesSociales({ onResultado, deshabilitado }: Props) {
             key={id}
             type="button"
             onClick={() => elegir(id)}
+            onPointerEnter={() => precargar(id)}
+            onFocus={() => precargar(id)}
             disabled={deshabilitado || enCurso !== null}
             className="flex items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-navy transition-colors hover:border-primary hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -49,6 +72,15 @@ export default function BotonesSociales({ onResultado, deshabilitado }: Props) {
           </button>
         ))}
       </div>
+
+      {enCurso && modoProveedor(enCurso, proveedoresReales) === 'ventana' && (
+        <p role="status" className="mt-3 text-xs text-slate-500">
+          Elige tu cuenta en la ventana de {PROVEEDORES.find((p) => p.id === enCurso)!.nombre}. ¿No se abrió?{' '}
+          <button type="button" onClick={() => setEnCurso(null)} className="font-semibold text-primary hover:underline">
+            Cancelar
+          </button>
+        </p>
+      )}
 
       {demo && (
         <DialogoDemo
@@ -126,8 +158,9 @@ function DialogoDemo({
 
         <div className="flex flex-col gap-4 p-5">
           <p className="text-sm leading-relaxed">
-            Este prototipo no está conectado a Supabase Auth, así que no abre la ventana real de {proveedor.nombre}.
-            Escribe con qué datos quieres entrar y crearemos tu cuenta asociada a {proveedor.nombre}.
+            Este sitio aún no tiene configurado el acceso con {proveedor.nombre} (falta su clave), así que no abre la
+            ventana real de {proveedor.nombre}. Escribe con qué datos quieres entrar y crearemos tu cuenta asociada a{' '}
+            {proveedor.nombre}.
           </p>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-semibold text-navy">Nombre</span>

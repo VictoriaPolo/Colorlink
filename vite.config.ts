@@ -27,6 +27,8 @@ export default defineConfig({
     env: {
       VITE_SUPABASE_URL: '',
       VITE_SUPABASE_ANON_KEY: '',
+      VITE_GOOGLE_CLIENT_ID: '',
+      VITE_FACEBOOK_APP_ID: '',
     },
   },
 })
