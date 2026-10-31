@@ -9,6 +9,7 @@ import { useAuth } from '@/features/auth/AuthContext'
 import { useSolicitudes } from '@/features/solicitudes/context/SolicitudesContext'
 import type { ContextoAdmin } from '@/features/admin/ContextoAdmin'
 import NotificationBell from '@/features/admin/NotificationBell'
+import SelectorIdentidad from '@/features/admin/SelectorIdentidad'
 import { leerIdentidad, guardarIdentidad } from '@/features/admin/identidad'
 import { useEquipo } from '@/data/repositories/equipoRepository'
 import { tiendaRepository } from '@/data/repositories/tiendaRepository'
@@ -162,22 +163,17 @@ export default function AdminLayout() {
                 <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white/70 uppercase">
                   Modo demostración
                 </span>
-                <label className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-semibold tracking-wide text-white/50 uppercase">Actuando como</span>
-                  <select
-                    value={identidad}
-                    onChange={(e) => cambiarIdentidad(e.target.value)}
-                    style={{ colorScheme: 'dark' }}
-                    className="rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-xs font-semibold text-white"
-                  >
-                    <option value={usuario.nombre}>{usuario.nombre} (cuenta compartida)</option>
-                    {equipo.map((m) => (
-                      <option key={m.nombre} value={m.nombre}>
-                        {m.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <SelectorIdentidad
+                    valor={identidad}
+                    onCambiar={cambiarIdentidad}
+                    opciones={[
+                      { valor: usuario.nombre, etiqueta: `${usuario.nombre} (cuenta compartida)` },
+                      ...equipo.map((m) => ({ valor: m.nombre, etiqueta: m.nombre })),
+                    ]}
+                  />
+                </div>
               </>
             )}
             <div className="flex items-center gap-3">
