@@ -14,7 +14,7 @@ function hace(fechaISO: string): string {
 /** Centro de notificaciones del equipo: lo que antes eran toasts efímeros
  * (3.5s y se pierden) queda aquí con historial — si nadie estaba mirando la
  * pantalla cuando avanzó una solicitud o cambió un pedido, lo ve al entrar. */
-export default function NotificationBell() {
+export default function NotificationBell({ alinearIzquierda }: { alinearIzquierda?: boolean }) {
   const { notificaciones, marcarNotificacionesLeidas, limpiarNotificaciones } = useToast()
   const [abierto, setAbierto] = useState(false)
   const contenedorRef = useRef<HTMLDivElement>(null)
@@ -58,7 +58,9 @@ export default function NotificationBell() {
       </button>
 
       {abierto && (
-        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-soft-lg">
+        <div
+          className={`absolute z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-soft-lg ${alinearIzquierda ? 'left-0' : 'right-0'}`}
+        >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <h3 className="text-sm font-bold text-navy">Notificaciones</h3>
             {notificaciones.length > 0 && (

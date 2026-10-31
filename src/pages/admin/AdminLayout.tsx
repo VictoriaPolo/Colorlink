@@ -145,7 +145,7 @@ export default function AdminLayout() {
         <FranjaColores />
         <div className="flex items-center justify-between gap-2 px-5 pt-6 pb-2">
           <Logo claro />
-          <NotificationBell />
+          <NotificationBell alinearIzquierda />
         </div>
         <div className="px-5 pb-2">
           <span className="inline-block rounded bg-accent px-2.5 py-1 text-[11px] font-extrabold tracking-wider text-navy uppercase">
@@ -167,6 +167,7 @@ export default function AdminLayout() {
                   <select
                     value={identidad}
                     onChange={(e) => cambiarIdentidad(e.target.value)}
+                    style={{ colorScheme: 'dark' }}
                     className="rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-xs font-semibold text-white"
                   >
                     <option value={usuario.nombre}>{usuario.nombre} (cuenta compartida)</option>
