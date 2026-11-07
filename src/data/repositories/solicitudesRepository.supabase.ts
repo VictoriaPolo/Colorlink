@@ -15,6 +15,7 @@ import type {
 import { generarRecomendacion } from '@/domain/solicitud/recommendationEngine'
 import { avanzarEstado } from '@/domain/solicitud/estadoMachine'
 import { supabase } from '@/data/supabaseClient'
+import { enviarCorreoConfirmacion } from '@/data/correo'
 import type { OpcionesCrearSolicitud, SolicitudesRepository } from './solicitudesRepository.types'
 
 /**
@@ -339,6 +340,14 @@ export const solicitudesRepositorySupabase: SolicitudesRepository = {
 
     const creada = await obtenerPorId(solicitudId)
     if (!creada) throw new Error('La solicitud se creó pero no se pudo volver a leer.')
+
+    void enviarCorreoConfirmacion('solicitud', opciones.propietario, {
+      id: solicitudId,
+      cliente: identificacion.cliente,
+      tipoObra: proyecto.tipoObra,
+      ciudad: proyecto.ciudad,
+    })
+
     return creada
   },
 

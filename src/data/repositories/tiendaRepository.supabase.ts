@@ -2,6 +2,7 @@ import type { CategoriaProducto, ItemCarrito, Kit, Pedido, PatologiaKit, Product
 import type { Pago } from '@/domain/pagos/tipos'
 import { codigoRetiro, pagoDe, referenciaPago } from '@/domain/pagos/pasarela'
 import { supabase } from '@/data/supabaseClient'
+import { enviarCorreoConfirmacion } from '@/data/correo'
 import type { ExtrasPedido, TiendaRepository } from './tiendaRepository.types'
 
 function requireClient() {
@@ -157,6 +158,14 @@ export const tiendaRepositorySupabase: TiendaRepository = {
     }
     if (respuesta.error) throw respuesta.error
     const data = respuesta.data
+
+    void enviarCorreoConfirmacion('pedido', clienteEmail, {
+      id: data.id,
+      items: conPago.items,
+      total,
+      codigoRetiro: codigo,
+      puntoRetiro,
+    })
 
     return {
       id: data.id as string,
