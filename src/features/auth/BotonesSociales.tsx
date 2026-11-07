@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Loader2, X } from 'lucide-react'
-import { IconoFacebook, IconoGoogle } from '@/shared/brand/IconosProveedor'
+import { IconoGoogle } from '@/shared/brand/IconosProveedor'
 import Button from '@/shared/ui/Button'
 import type { ProveedorSocial, ResultadoAuth } from '@/data/repositories/authRepository.types'
 import { useAuth } from './AuthContext'
 import { ErrorAcceso, abrirVentanaProveedor, mensajeDeError, modoProveedor, precargarProveedor } from './proveedoresSociales'
 import { erroresPorCampo, identidadDemoSchema } from './schemas'
 
+// Facebook queda fuera por ahora: solo hay modo demostración (falta una cuenta de Meta for Developers para activarlo real).
 const PROVEEDORES: { id: ProveedorSocial; nombre: string; Icono: typeof IconoGoogle }[] = [
   { id: 'google', nombre: 'Google', Icono: IconoGoogle },
-  { id: 'facebook', nombre: 'Facebook', Icono: IconoFacebook },
 ]
 
 interface Props {

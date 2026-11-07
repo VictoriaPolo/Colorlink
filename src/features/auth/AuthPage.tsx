@@ -316,7 +316,7 @@ export default function AuthPage({ modo }: { modo: 'login' | 'registro' }) {
                   </div>
                   <p className="text-center text-xs leading-relaxed text-slate-500">
                     Para la sustentación: entra sin crear una cuenta ni usar datos reales. El acceso de
-                    arriba (Google, Facebook o tu correo) es el ingreso normal, con tu propia cuenta.
+                    arriba (Google o tu correo) es el ingreso normal, con tu propia cuenta.
                   </p>
 
                   <div className="overflow-hidden rounded-lg border border-brand-100 bg-brand-50/60">
