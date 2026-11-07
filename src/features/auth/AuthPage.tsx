@@ -310,8 +310,14 @@ export default function AuthPage({ modo }: { modo: 'login' | 'registro' }) {
               </p>
 
               {!esRegistro && MODO_DEMO && (
-                <div className="mt-6 flex flex-col gap-3">
-                  <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Prototipo académico · probar sin crear cuenta</p>
+                <div className="mt-8 flex flex-col gap-3">
+                  <div className="flex items-center gap-3 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                    <span className="h-px flex-1 bg-slate-200" /> muestra académica <span className="h-px flex-1 bg-slate-200" />
+                  </div>
+                  <p className="text-center text-xs leading-relaxed text-slate-500">
+                    Para la sustentación: entra sin crear una cuenta ni usar datos reales. El acceso de
+                    arriba (Google, Facebook o tu correo) es el ingreso normal, con tu propia cuenta.
+                  </p>
 
                   <div className="overflow-hidden rounded-lg border border-brand-100 bg-brand-50/60">
                     <div className="flex items-start gap-3 p-4">
