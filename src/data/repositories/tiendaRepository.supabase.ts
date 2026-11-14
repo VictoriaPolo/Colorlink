@@ -161,7 +161,7 @@ export const tiendaRepositorySupabase: TiendaRepository = {
 
     void enviarCorreoConfirmacion('pedido', clienteEmail, {
       id: data.id,
-      items: conPago.items,
+      items: items.map((i) => ({ nombre: i.nombre, cantidad: i.cantidad, precioUnitario: i.precioUnitario })),
       total,
       codigoRetiro: codigo,
       puntoRetiro,
